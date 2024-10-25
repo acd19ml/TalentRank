@@ -1,0 +1,110 @@
+package git
+
+import (
+	"acd19ml/TalentRank/utils"
+	"context"
+	"os"
+
+	"github.com/google/go-github/github"
+	"golang.org/x/oauth2"
+)
+
+// 接口检查
+var _ utils.Services = (*git)(nil)
+
+func NewGitClient() *git {
+	ctx := context.Background()
+	// 使用 OAuth2 令牌进行认证
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: os.Getenv("GITHUB_TOKEN")},
+	)
+	tc := oauth2.NewClient(ctx, ts)
+
+	client := github.NewClient(tc)
+
+	return &git{
+		client: client,
+		ctx:    ctx,
+		oauth:  &ts,
+	}
+}
+
+type git struct {
+	client *github.Client
+	ctx    context.Context
+	oauth  *oauth2.TokenSource
+}
+
+func (g *git) GetFollowers(username string) (int, error) {
+	// 获取 "alibaba" 用户的追随者总数，使用 ListFollowers 并设置仅返回第一页
+	opts := &github.ListOptions{Page: 1, PerPage: 1}
+	followers, resp, err := g.client.Users.ListFollowers(g.ctx, username, opts)
+	if err != nil {
+		return 0, err
+	}
+	// 打印 followers 总数
+	return resp.LastPage * (len(followers) + 1), nil
+
+}
+
+// GetTotalStars 获取指定用户的所有仓库 star 总数
+func (g *git) GetTotalStars(username string) (int, error) {
+	// 初始化星标总数
+	totalStars := 0
+
+	// 设置分页参数
+	opts := &github.RepositoryListOptions{
+		ListOptions: github.ListOptions{PerPage: 50},
+	}
+
+	// 获取所有仓库并累计星标数
+	for {
+		repos, resp, err := g.client.Repositories.List(g.ctx, username, opts)
+		if err != nil {
+			return 0, err
+		}
+
+		for _, repo := range repos {
+			totalStars += repo.GetStargazersCount()
+		}
+
+		// 如果没有下一页，则退出循环
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	return totalStars, nil
+}
+
+// GetTotalForks 获取指定用户的所有仓库 fork 总数
+func (g *git) GetTotalForks(username string) (int, error) {
+	// 初始化 fork 总数
+	totalForks := 0
+
+	// 设置分页参数
+	opts := &github.RepositoryListOptions{
+		ListOptions: github.ListOptions{PerPage: 50},
+	}
+
+	// 获取所有仓库并累计 fork 数
+	for {
+		repos, resp, err := g.client.Repositories.List(g.ctx, username, opts)
+		if err != nil {
+			return 0, err
+		}
+
+		for _, repo := range repos {
+			totalForks += repo.GetForksCount()
+		}
+
+		// 如果没有下一页，则退出循环
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	return totalForks, nil
+}
