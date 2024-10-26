@@ -10,9 +10,11 @@ import (
 
 func main() {
 	service := git.NewGitClient()
-	num, err := service.GetFollowers(context.Background(), utils.Username)
+	names, err := service.GetOrganizations(context.Background(), utils.Username)
 	if err != nil {
-		log.Fatalf("Error getting Followers: %v", err)
+		log.Fatalf("Error getting name: %v", err)
 	}
-	fmt.Printf("Followers for user %s: %d\n", utils.Username, num)
+	for _, name := range names {
+		fmt.Printf("Organization for user %s: %s\n", utils.Username, name)
+	}
 }
