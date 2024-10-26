@@ -1,33 +1,18 @@
 package main
 
 import (
+	"acd19ml/TalentRank/utils"
 	"acd19ml/TalentRank/utils/git"
+	"context"
 	"fmt"
 	"log"
 )
 
-const (
-	username = "alibaba"
-)
-
 func main() {
 	service := git.NewGitClient()
-	num, err := service.GetFollowers(username)
+	num, err := service.GetFollowers(context.Background(), utils.Username)
 	if err != nil {
 		log.Fatalf("Error getting Followers: %v", err)
 	}
-	fmt.Printf("Followers for user %s: %d\n", username, num)
-
-	totalStars, err := service.GetTotalStars(username)
-	if err != nil {
-		log.Fatalf("Error getting total stars: %v", err)
-	}
-
-	fmt.Printf("Total stars for user %s: %d\n", username, totalStars)
-
-	totalForks, err := service.GetTotalForks(username)
-	if err != nil {
-		log.Fatalf("Error getting total forks: %v", err)
-	}
-	fmt.Printf("Total forks for user %s: %d\n", username, totalForks)
+	fmt.Printf("Followers for user %s: %d\n", utils.Username, num)
 }

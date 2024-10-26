@@ -1,7 +1,13 @@
 package utils
 
-type Services interface {
-	GetFollowers(username string) (int, error)
-	GetTotalStars(username string) (int, error)
-	GetTotalForks(username string) (int, error)
+import "context"
+
+type Rank interface {
+	GetFollowers(ctx context.Context, username string) (int, error)
+	GetTotalStars(ctx context.Context, username string) (int, error)
+	GetTotalForks(ctx context.Context, username string) (int, error)
+	GetOrganizations(ctx context.Context, username string) ([]string, error)
+}
+
+type Nation interface {
 }
