@@ -48,6 +48,32 @@ func (g *Git) GetBio(ctx context.Context, username string) (string, error) {
 	return user.GetBio(), nil
 }
 
+func (g *Git) GetOrganizations(ctx context.Context, username string) ([]string, error) {
+	var orgsList []string
+
+	// 设置分页参数
+	opts := &github.ListOptions{PerPage: 50}
+
+	// 获取所有组织
+	for {
+		orgs, resp, err := g.client.Organizations.List(ctx, username, opts)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, org := range orgs {
+			orgsList = append(orgsList, org.GetLogin())
+		}
+
+		// 如果没有下一页，则退出循环
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+	return orgsList, nil
+}
+
 func (g *Git) GetReadme(ctx context.Context, username string, charLimit int) (string, error) {
 	repos, err := g.GetRepositories(ctx, username)
 	if err != nil {
