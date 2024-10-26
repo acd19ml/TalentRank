@@ -1,11 +1,13 @@
 package git_test
 
 import (
-	"acd19ml/TalentRank/utils"
-	"acd19ml/TalentRank/utils/git"
 	"context"
 	"os"
 	"testing"
+
+	"github.com/acd19ml/TalentRank/utils/git"
+
+	"github.com/acd19ml/TalentRank/utils"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -14,7 +16,7 @@ const (
 	username = utils.Username
 )
 
-var client *git.Git
+var client utils.Service
 
 func init() {
 	if os.Getenv("GITHUB_TOKEN") == "" {
@@ -89,4 +91,39 @@ func TestGetCommits(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, commits)
 	assert.LessOrEqual(t, len(commits), charLimit*21) // 假设最多100个repo
+}
+
+func TestGetFollowers(t *testing.T) {
+	ctx := context.Background()
+	followers, err := client.GetFollowers(ctx, username)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, followers, 0, "Followers count should be non-negative")
+}
+
+func TestGetTotalStars(t *testing.T) {
+	ctx := context.Background()
+	totalStars, err := client.GetTotalStars(ctx, username)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, totalStars, 0, "Total stars count should be non-negative")
+}
+
+func TestGetTotalForks(t *testing.T) {
+	ctx := context.Background()
+	totalForks, err := client.GetTotalForks(ctx, username)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, totalForks, 0, "Total forks count should be non-negative")
+}
+
+func TestGetRepositories(t *testing.T) {
+	ctx := context.Background()
+	repos, err := client.GetRepositories(ctx, username)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, repos, "Repositories list should not be empty")
+}
+
+func TestGetOrganizations(t *testing.T) {
+	ctx := context.Background()
+	orgs, err := client.GetOrganizations(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, orgs, "Organizations list should not be nil")
 }

@@ -1,11 +1,13 @@
 package main
 
 import (
-	"acd19ml/TalentRank/utils"
-	"acd19ml/TalentRank/utils/git"
 	"context"
 	"fmt"
 	"log"
+
+	"github.com/acd19ml/TalentRank/utils/git"
+
+	"github.com/acd19ml/TalentRank/utils"
 )
 
 func main() {

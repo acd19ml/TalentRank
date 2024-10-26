@@ -1,17 +1,17 @@
 package git
 
 import (
-	"acd19ml/TalentRank/utils"
 	"context"
 	"os"
+
+	"github.com/acd19ml/TalentRank/utils"
 
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 )
 
 // 接口检查
-var _ utils.Rank = (*Git)(nil)
-var _ utils.Nation = (*Git)(nil)
+var _ utils.Service = (*Git)(nil)
 
 func NewGitClient() *Git {
 	ctx := context.Background()
