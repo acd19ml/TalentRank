@@ -6,8 +6,8 @@ import (
 	"github.com/google/go-github/github"
 )
 
-func (g *git) GetFollowers(ctx context.Context, username string) (int, error) {
-	user, err := g.GetUser(username)
+func (g *Git) GetFollowers(ctx context.Context, username string) (int, error) {
+	user, err := g.GetUser(ctx, username)
 	num_follwers := user.GetFollowers()
 	// 打印 followers 总数
 	return num_follwers, err
@@ -15,7 +15,7 @@ func (g *git) GetFollowers(ctx context.Context, username string) (int, error) {
 }
 
 // GetTotalStars 获取指定用户的所有仓库 star 总数
-func (g *git) GetTotalStars(ctx context.Context, username string) (int, error) {
+func (g *Git) GetTotalStars(ctx context.Context, username string) (int, error) {
 	// 初始化星标总数
 	totalStars := 0
 
@@ -46,7 +46,7 @@ func (g *git) GetTotalStars(ctx context.Context, username string) (int, error) {
 }
 
 // GetTotalForks 获取指定用户的所有仓库 fork 总数
-func (g *git) GetTotalForks(ctx context.Context, username string) (int, error) {
+func (g *Git) GetTotalForks(ctx context.Context, username string) (int, error) {
 	// 初始化 fork 总数
 	totalForks := 0
 
@@ -77,7 +77,7 @@ func (g *git) GetTotalForks(ctx context.Context, username string) (int, error) {
 }
 
 // GetRepositories 获取指定用户的所有仓库名称
-func (g *git) GetRepositories(ctx context.Context, username string) ([]string, error) {
+func (g *Git) GetRepositories(ctx context.Context, username string) ([]string, error) {
 	var reposList []string
 
 	// 设置分页参数
@@ -106,8 +106,7 @@ func (g *git) GetRepositories(ctx context.Context, username string) ([]string, e
 	return reposList, nil
 }
 
-// GetOrganizations 获取指定用户所属的所有组织名称
-func (g *git) GetOrganizations(ctx context.Context, username string) ([]string, error) {
+func (g *Git) GetOrganizations(ctx context.Context, username string) ([]string, error) {
 	var orgsList []string
 
 	// 设置分页参数
@@ -130,6 +129,5 @@ func (g *git) GetOrganizations(ctx context.Context, username string) ([]string, 
 		}
 		opts.Page = resp.NextPage
 	}
-
 	return orgsList, nil
 }

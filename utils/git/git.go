@@ -10,9 +10,10 @@ import (
 )
 
 // 接口检查
-var _ utils.Rank = (*git)(nil)
+var _ utils.Rank = (*Git)(nil)
+var _ utils.Nation = (*Git)(nil)
 
-func NewGitClient() *git {
+func NewGitClient() *Git {
 	ctx := context.Background()
 	// 使用 OAuth2 令牌进行认证
 	ts := oauth2.StaticTokenSource(
@@ -22,23 +23,29 @@ func NewGitClient() *git {
 
 	client := github.NewClient(tc)
 
-	return &git{
+	return &Git{
 		client: client,
-		ctx:    ctx,
 		oauth:  &ts,
 	}
 }
 
-type git struct {
+type Git struct {
 	client *github.Client
-	ctx    context.Context
 	oauth  *oauth2.TokenSource
 }
 
-func (g *git) GetUser(username string) (*github.User, error) {
-	user, _, err := g.client.Users.Get(g.ctx, username)
+func (g *Git) GetUser(ctx context.Context, username string) (*github.User, error) {
+	user, _, err := g.client.Users.Get(ctx, username)
 	if err != nil {
 		panic(err)
 	}
 	return user, nil
+}
+
+func (g *Git) GetRepositorie(ctx context.Context, username string, repo string) (*github.Repository, error) {
+	repository, _, err := g.client.Repositories.Get(ctx, username, repo)
+	if err != nil {
+		panic(err)
+	}
+	return repository, nil
 }
