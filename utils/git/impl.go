@@ -229,7 +229,7 @@ func (g *Git) GetRepoStars(ctx context.Context, owner, repoName string) (int, er
 	}
 
 	// 提取并返回仓库的 star 数量
-	
+
 	return repo.GetStargazersCount(), nil
 }
 
@@ -294,7 +294,7 @@ func (g *Git) GetRepositories(ctx context.Context, username string) ([]string, e
 	return reposList, nil
 }
 
-func (g *Git) GetRepoStarsMap(ctx context.Context, username string) (map[string]int, error) {
+func (g *Git) GetStarsByRepo(ctx context.Context, username string) (map[string]int, error) {
 	// 初始化一个 map，用于存储仓库名和 stars 数量
 	repoStarsMap := make(map[string]int)
 
@@ -315,7 +315,6 @@ func (g *Git) GetRepoStarsMap(ctx context.Context, username string) (map[string]
 		// 将仓库名和 star 数量存入 map
 		repoStarsMap[repoName] = stars
 	}
-	
 
 	return repoStarsMap, nil
 }
