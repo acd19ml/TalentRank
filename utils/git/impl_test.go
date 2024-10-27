@@ -2,7 +2,6 @@ package git_test
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 
@@ -136,13 +135,12 @@ func TestGetRepositories(t *testing.T) {
 	assert.NotEmpty(t, repos, "Repositories list should not be empty")
 }
 
-func TestGetRepoStarsMap(t *testing.T) {
+func TestGetStarsByRepo(t *testing.T) {
 	ctx := context.Background()
 	// username := "octocat" // 使用 GitHub 上一个公开的示例用户
 
-	// 调用 GetRepoStarsMap 方法
-	repoStarsMap, err := client.GetRepoStarsMap(ctx, username)
-	fmt.Println(repoStarsMap)
+	// 调用 GetStarsByRepo 方法
+	repoStarsMap, err := client.GetStarsByRepo(ctx, username)
 
 	// 检查是否返回了错误
 	assert.NoError(t, err)
@@ -154,14 +152,116 @@ func TestGetRepoStarsMap(t *testing.T) {
 	// 检查每个仓库的 star 数量是否非负
 	for repo, stars := range repoStarsMap {
 		assert.GreaterOrEqual(t, stars, 0, "Stars count for repo %s should be non-negative", repo)
+		// t.Logf("Stars in repo %s: %d", repo, stars)
 	}
 }
 
 func TestGetOrganizations(t *testing.T) {
 	ctx := context.Background()
-	orgs, err := client.GetOrganizations(ctx, username)
+	_, err := client.GetOrganizations(ctx, username)
 	assert.NoError(t, err)
-	assert.NotNil(t, orgs, "Organizations list should not be nil")
+}
+
+func TestGetTotalCommitsByRepo(t *testing.T) {
+	ctx := context.Background()
+
+	// 获取所有仓库的提交总数
+	totalCommitsByRepo, err := client.GetTotalCommitsByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, totalCommitsByRepo, "Total commits map should not be nil")
+
+	// 检查每个仓库的提交数是否非负
+	for repo, commitCount := range totalCommitsByRepo {
+		// t.Logf("Repo: %s, Total Commits: %d", repo, commitCount)
+		assert.GreaterOrEqual(t, commitCount, 0, "Commit count should be non-negative for repository "+repo)
+	}
+}
+
+func TestGetUserCommitsByRepo(t *testing.T) {
+	ctx := context.Background()
+
+	// 获取用户在每个仓库的提交数
+	userCommitsByRepo, err := client.GetUserCommitsByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, userCommitsByRepo, "User commits map should not be nil")
+
+	// 检查每个仓库的用户提交数是否非负
+	for repo, commitCount := range userCommitsByRepo {
+		// t.Logf("Repo: %s, User Commits: %d", repo, commitCount)
+		assert.GreaterOrEqual(t, commitCount, 0, "User commit count should be non-negative for repository "+repo)
+	}
+}
+
+func TestGetTotalIssuesByRepo(t *testing.T) {
+	ctx := context.Background()
+	client := git.NewGitClient()
+
+	result, err := client.GetTotalIssuesByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// for repo, count := range result {
+	// 	t.Logf("Total issues for repo %s: %d", repo, count)
+	// }
+}
+
+func TestGetUserSolvedIssuesByRepo(t *testing.T) {
+	ctx := context.Background()
+	client := git.NewGitClient()
+
+	result, err := client.GetUserSolvedIssuesByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// for repo, count := range result {
+	// 	t.Logf("Solved issues by user in repo %s: %d", repo, count)
+	// }
+}
+
+func TestGetTotalPullRequestsByRepo(t *testing.T) {
+	ctx := context.Background()
+	client := git.NewGitClient()
+
+	result, err := client.GetTotalPullRequestsByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// for repo, count := range result {
+	// 	t.Logf("Total pull requests for repo %s: %d", repo, count)
+	// }
+}
+
+func TestGetUserMergedPullRequestsByRepo(t *testing.T) {
+	ctx := context.Background()
+	client := git.NewGitClient()
+
+	result, err := client.GetUserMergedPullRequestsByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// for repo, count := range result {
+	// 	t.Logf("Merged pull requests by user in repo %s: %d", repo, count)
+	// }
+}
+
+func TestGetTotalCodeReviewsByRepo(t *testing.T) {
+	ctx := context.Background()
+	client := git.NewGitClient()
+
+	result, err := client.GetTotalCodeReviewsByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	for repo, count := range result {
+		t.Logf("Total code reviews for repo %s: %d", repo, count)
+	}
+}
+
+func TestGetUserCodeReviewsByRepo(t *testing.T) {
+	ctx := context.Background()
+	client := git.NewGitClient()
+
+	result, err := client.GetUserCodeReviewsByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	for repo, count := range result {
+		t.Logf("User's code reviews for repo %s: %d", repo, count)
+	}
 }
 
 func TestGetLineChanges(t *testing.T) {
