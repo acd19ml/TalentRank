@@ -759,6 +759,8 @@ func (g *Git) GetTotalLineChanges(ctx context.Context, username string) (int, er
 	}
 
 	return totalLineChanges, nil
+}
+
 // GetDependentRepositoriesByRepo 获取每个仓库的依赖数量
 func (g *Git) GetDependentRepositoriesByRepo(ctx context.Context, username string) (map[string]int, error) {
 	// 初始化结果 map
