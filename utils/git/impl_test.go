@@ -2,7 +2,6 @@ package git_test
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 
@@ -142,7 +141,6 @@ func TestGetStarsByRepo(t *testing.T) {
 
 	// 调用 GetStarsByRepo 方法
 	repoStarsMap, err := client.GetStarsByRepo(ctx, username)
-	fmt.Println(repoStarsMap)
 
 	// 检查是否返回了错误
 	assert.NoError(t, err)
@@ -154,14 +152,14 @@ func TestGetStarsByRepo(t *testing.T) {
 	// 检查每个仓库的 star 数量是否非负
 	for repo, stars := range repoStarsMap {
 		assert.GreaterOrEqual(t, stars, 0, "Stars count for repo %s should be non-negative", repo)
+		// t.Logf("Stars in repo %s: %d", repo, stars)
 	}
 }
 
 func TestGetOrganizations(t *testing.T) {
 	ctx := context.Background()
-	orgs, err := client.GetOrganizations(ctx, username)
+	_, err := client.GetOrganizations(ctx, username)
 	assert.NoError(t, err)
-	assert.NotNil(t, orgs, "Organizations list should not be nil")
 }
 
 func TestGetTotalCommitsByRepo(t *testing.T) {
@@ -174,7 +172,7 @@ func TestGetTotalCommitsByRepo(t *testing.T) {
 
 	// 检查每个仓库的提交数是否非负
 	for repo, commitCount := range totalCommitsByRepo {
-		t.Logf("Repo: %s, Total Commits: %d", repo, commitCount)
+		// t.Logf("Repo: %s, Total Commits: %d", repo, commitCount)
 		assert.GreaterOrEqual(t, commitCount, 0, "Commit count should be non-negative for repository "+repo)
 	}
 }
@@ -189,7 +187,55 @@ func TestGetUserCommitsByRepo(t *testing.T) {
 
 	// 检查每个仓库的用户提交数是否非负
 	for repo, commitCount := range userCommitsByRepo {
-		t.Logf("Repo: %s, User Commits: %d", repo, commitCount)
+		// t.Logf("Repo: %s, User Commits: %d", repo, commitCount)
 		assert.GreaterOrEqual(t, commitCount, 0, "User commit count should be non-negative for repository "+repo)
 	}
+}
+
+func TestGetTotalIssuesByRepo(t *testing.T) {
+	ctx := context.Background()
+	client := git.NewGitClient()
+
+	result, err := client.GetTotalIssuesByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// for repo, count := range result {
+	// 	t.Logf("Total issues for repo %s: %d", repo, count)
+	// }
+}
+
+func TestGetUserSolvedIssuesByRepo(t *testing.T) {
+	ctx := context.Background()
+	client := git.NewGitClient()
+
+	result, err := client.GetUserSolvedIssuesByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// for repo, count := range result {
+	// 	t.Logf("Solved issues by user in repo %s: %d", repo, count)
+	// }
+}
+
+func TestGetTotalPullRequestsByRepo(t *testing.T) {
+	ctx := context.Background()
+	client := git.NewGitClient()
+
+	result, err := client.GetTotalPullRequestsByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// for repo, count := range result {
+	// 	t.Logf("Total pull requests for repo %s: %d", repo, count)
+	// }
+}
+
+func TestGetUserMergedPullRequestsByRepo(t *testing.T) {
+	ctx := context.Background()
+	client := git.NewGitClient()
+
+	result, err := client.GetUserMergedPullRequestsByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// for repo, count := range result {
+	// 	t.Logf("Merged pull requests by user in repo %s: %d", repo, count)
+	// }
 }

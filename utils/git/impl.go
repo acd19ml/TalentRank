@@ -431,3 +431,135 @@ func (g *Git) GetUserCommitsByRepo(ctx context.Context, username string) (map[st
 
 	return userCommitsCount, nil
 }
+
+func (g *Git) GetTotalIssuesByRepo(ctx context.Context, username string) (map[string]int, error) {
+	issuesCount := make(map[string]int)
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories: %w", err)
+	}
+
+	for _, repo := range repos {
+		opts := &github.IssueListByRepoOptions{
+			State: "closed",
+			ListOptions: github.ListOptions{
+				PerPage: 100,
+			},
+		}
+		totalIssues := 0
+		for {
+			issues, resp, err := g.client.Issues.ListByRepo(ctx, username, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list issues for repo %s: %w", repo, err)
+			}
+			totalIssues += len(issues)
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
+		}
+		issuesCount[repo] = totalIssues
+	}
+	return issuesCount, nil
+}
+
+func (g *Git) GetUserSolvedIssuesByRepo(ctx context.Context, username string) (map[string]int, error) {
+	userIssuesCount := make(map[string]int)
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories: %w", err)
+	}
+
+	for _, repo := range repos {
+		opts := &github.IssueListByRepoOptions{
+			State: "closed",
+			ListOptions: github.ListOptions{
+				PerPage: 100,
+			},
+		}
+		userIssues := 0
+		for {
+			issues, resp, err := g.client.Issues.ListByRepo(ctx, username, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list issues for repo %s: %w", repo, err)
+			}
+			for _, issue := range issues {
+				if issue.Assignee != nil && issue.Assignee.GetLogin() == username {
+					userIssues++
+				}
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
+		}
+		userIssuesCount[repo] = userIssues
+	}
+	return userIssuesCount, nil
+}
+
+func (g *Git) GetTotalPullRequestsByRepo(ctx context.Context, username string) (map[string]int, error) {
+	prCount := make(map[string]int)
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories: %w", err)
+	}
+
+	for _, repo := range repos {
+		opts := &github.PullRequestListOptions{
+			State: "closed",
+			ListOptions: github.ListOptions{
+				PerPage: 100,
+			},
+		}
+		totalPRs := 0
+		for {
+			prs, resp, err := g.client.PullRequests.List(ctx, username, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list pull requests for repo %s: %w", repo, err)
+			}
+			totalPRs += len(prs)
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
+		}
+		prCount[repo] = totalPRs
+	}
+	return prCount, nil
+}
+
+func (g *Git) GetUserMergedPullRequestsByRepo(ctx context.Context, username string) (map[string]int, error) {
+	userPRCount := make(map[string]int)
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories: %w", err)
+	}
+
+	for _, repo := range repos {
+		opts := &github.PullRequestListOptions{
+			State: "closed",
+			ListOptions: github.ListOptions{
+				PerPage: 100,
+			},
+		}
+		userPRs := 0
+		for {
+			prs, resp, err := g.client.PullRequests.List(ctx, username, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list pull requests for repo %s: %w", repo, err)
+			}
+			for _, pr := range prs {
+				if pr.User != nil && pr.User.GetLogin() == username {
+					userPRs++
+				}
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
+		}
+		userPRCount[repo] = userPRs
+	}
+	return userPRCount, nil
+}
