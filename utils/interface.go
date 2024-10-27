@@ -10,6 +10,8 @@ type Service interface {
 	GetDependentRepositories(ctx context.Context, username string) (int, error)
 	GetRepoStars(ctx context.Context, owner, repoName string) (int, error)
 	GetRepoStarsMap(ctx context.Context, username string) (map[string]int, error)
+	GetTotalCommitsByRepo(ctx context.Context, username string) (map[string]int, error)
+	GetUserCommitsByRepo(ctx context.Context, username string) (map[string]int, error)
 
 	// Nation
 	GetName(ctx context.Context, username string) (string, error)
