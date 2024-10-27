@@ -163,3 +163,18 @@ func TestGetOrganizations(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, orgs, "Organizations list should not be nil")
 }
+
+func TestGetLineChanges(t *testing.T) {
+	ctx := context.Background()
+	repoName := "your-repo-name" // 替换为实际的仓库名称
+	lineChanges, err := client.GetLineChanges(ctx, username, repoName)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, lineChanges, 0, "Line changes count should be non-negative")
+}
+
+func TestGetTotalLineChanges(t *testing.T) {
+	ctx := context.Background()
+	totalLineChanges, err := client.GetTotalLineChanges(ctx, username)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, totalLineChanges, 0, "Total line changes count should be non-negative")
+}

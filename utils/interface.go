@@ -22,4 +22,6 @@ type Service interface {
 	GetCommits(ctx context.Context, username string, charLimit int) (string, error)
 	// Tools
 	GetRepositories(ctx context.Context, username string) ([]string, error)
+	GetTotalLineChanges(ctx context.Context, username string) (int, error)
+	GetLineChanges(ctx context.Context, username, repoName string) (int, error)
 }
