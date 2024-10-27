@@ -136,12 +136,12 @@ func TestGetRepositories(t *testing.T) {
 	assert.NotEmpty(t, repos, "Repositories list should not be empty")
 }
 
-func TestGetRepoStarsMap(t *testing.T) {
+func TestGetStarsByRepo(t *testing.T) {
 	ctx := context.Background()
 	// username := "octocat" // 使用 GitHub 上一个公开的示例用户
 
-	// 调用 GetRepoStarsMap 方法
-	repoStarsMap, err := client.GetRepoStarsMap(ctx, username)
+	// 调用 GetStarsByRepo 方法
+	repoStarsMap, err := client.GetStarsByRepo(ctx, username)
 	fmt.Println(repoStarsMap)
 
 	// 检查是否返回了错误
