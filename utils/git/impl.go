@@ -759,4 +759,28 @@ func (g *Git) GetTotalLineChanges(ctx context.Context, username string) (int, er
 	}
 
 	return totalLineChanges, nil
+// GetDependentRepositoriesByRepo 获取每个仓库的依赖数量
+func (g *Git) GetDependentRepositoriesByRepo(ctx context.Context, username string) (map[string]int, error) {
+	// 初始化结果 map
+	repoDependentsCount := make(map[string]int)
+
+	// 获取用户的所有仓库
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories for user %s: %w", username, err)
+	}
+
+	// 遍历每个仓库，获取依赖数量
+	for _, repo := range repos {
+		url := fmt.Sprintf("https://github.com/%s/%s/network/dependents", username, repo)
+		count, err := utils.GetDependentRepositories(url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get dependents for repo %s: %w", repo, err)
+		}
+
+		// 将仓库依赖数量存入 map
+		repoDependentsCount[repo] = count
+	}
+
+	return repoDependentsCount, nil
 }
