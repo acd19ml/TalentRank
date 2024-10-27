@@ -2,6 +2,7 @@ package git_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -95,6 +96,21 @@ func TestGetRepoStars(t *testing.T) {
 	assert.GreaterOrEqual(t, stars, 0, "Stars count should be non-negative")
 }
 
+func TestGetRepoForks(t *testing.T) {
+	ctx := context.Background()
+	repoName := "wgan-gp" // 使用一个公开的仓库名
+
+	// 调用 GetRepoForks 方法
+	forks, err := client.GetRepoForks(ctx, username, repoName)
+
+	fmt.Printf("Forks: %d\n", forks)
+	// 检查是否返回了错误
+	assert.NoError(t, err)
+
+	// 检查 forks 数量是否非负
+	assert.GreaterOrEqual(t, forks, 0, "Forks count should be non-negative")
+}
+
 func TestGetCommits(t *testing.T) {
 
 	ctx := context.Background()
@@ -153,6 +169,25 @@ func TestGetStarsByRepo(t *testing.T) {
 	for repo, stars := range repoStarsMap {
 		assert.GreaterOrEqual(t, stars, 0, "Stars count for repo %s should be non-negative", repo)
 		// t.Logf("Stars in repo %s: %d", repo, stars)
+	}
+}
+
+func TestGetForksByRepo(t *testing.T) {
+	ctx := context.Background()
+
+	// 调用 GetForksByRepo 方法
+	repoForksMap, err := client.GetForksByRepo(ctx, username)
+	fmt.Printf("Forks: %v\n", repoForksMap)
+	// 检查是否返回了错误
+	assert.NoError(t, err)
+
+	// 检查返回的 map 是否非空
+	assert.NotNil(t, repoForksMap)
+	assert.NotEmpty(t, repoForksMap, "Repo forks map should not be empty")
+
+	// 检查每个仓库的 forks 数量是否非负
+	for repo, forks := range repoForksMap {
+		assert.GreaterOrEqual(t, forks, 0, "Forks count for repo %s should be non-negative", repo)
 	}
 }
 
