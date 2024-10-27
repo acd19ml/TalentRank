@@ -163,3 +163,33 @@ func TestGetOrganizations(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, orgs, "Organizations list should not be nil")
 }
+
+func TestGetTotalCommitsByRepo(t *testing.T) {
+	ctx := context.Background()
+
+	// 获取所有仓库的提交总数
+	totalCommitsByRepo, err := client.GetTotalCommitsByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, totalCommitsByRepo, "Total commits map should not be nil")
+
+	// 检查每个仓库的提交数是否非负
+	for repo, commitCount := range totalCommitsByRepo {
+		t.Logf("Repo: %s, Total Commits: %d", repo, commitCount)
+		assert.GreaterOrEqual(t, commitCount, 0, "Commit count should be non-negative for repository "+repo)
+	}
+}
+
+func TestGetUserCommitsByRepo(t *testing.T) {
+	ctx := context.Background()
+
+	// 获取用户在每个仓库的提交数
+	userCommitsByRepo, err := client.GetUserCommitsByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, userCommitsByRepo, "User commits map should not be nil")
+
+	// 检查每个仓库的用户提交数是否非负
+	for repo, commitCount := range userCommitsByRepo {
+		t.Logf("Repo: %s, User Commits: %d", repo, commitCount)
+		assert.GreaterOrEqual(t, commitCount, 0, "User commit count should be non-negative for repository "+repo)
+	}
+}

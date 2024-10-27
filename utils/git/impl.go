@@ -3,8 +3,12 @@ package git
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/acd19ml/TalentRank/utils"
 	"github.com/google/go-github/github"
 )
@@ -337,4 +341,94 @@ func (g *Git) GetDependentRepositories(ctx context.Context, username string) (in
 	}
 
 	return totalDependents, nil
+}
+
+func (g *Git) GetTotalCommitsByRepo(ctx context.Context, username string) (map[string]int, error) {
+	repoCommitsCount := make(map[string]int)
+
+	// 获取用户的所有仓库
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories for user %s: %w", username, err)
+	}
+
+	// 遍历每个仓库，抓取并解析提交总数
+	for _, repo := range repos {
+		url := fmt.Sprintf("https://github.com/%s/%s", username, repo)
+
+		// 发起 HTTP GET 请求获取 HTML
+		resp, err := http.Get(url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch repo page for %s: %w", repo, err)
+		}
+		defer resp.Body.Close()
+
+		// 使用 goquery 加载 HTML 文档
+		doc, err := goquery.NewDocumentFromReader(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse HTML for repo %s: %w", repo, err)
+		}
+
+		// 查找提交总数元素
+		var commitCount int
+		doc.Find("span[data-component='text'] .fgColor-default").Each(func(i int, s *goquery.Selection) {
+			// 提取文本内容，格式如 "9 Commits"
+			text := strings.TrimSpace(s.Text())
+			parts := strings.Fields(text)
+			if len(parts) > 0 {
+				// 移除逗号并转换为整数
+				countStr := strings.ReplaceAll(parts[0], ",", "")
+				commitCount, _ = strconv.Atoi(countStr)
+			}
+		})
+
+		// 将结果存入 map
+		repoCommitsCount[repo] = commitCount
+	}
+
+	return repoCommitsCount, nil
+}
+
+func (g *Git) GetUserCommitsByRepo(ctx context.Context, username string) (map[string]int, error) {
+	// 初始化结果 map
+	userCommitsCount := make(map[string]int)
+
+	// 获取用户的所有仓库
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories for user %s: %w", username, err)
+	}
+
+	// 遍历每个仓库，获取该用户的提交总数
+	for _, repo := range repos {
+		// 设置分页参数，按用户名过滤每页最多 100 个提交
+		opts := &github.CommitsListOptions{
+			Author:      username, // 只获取该用户的提交
+			ListOptions: github.ListOptions{PerPage: 100},
+		}
+
+		userCommits := 0
+
+		// 获取仓库的用户提交，统计总数
+		for {
+			commits, resp, err := g.client.Repositories.ListCommits(ctx, username, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get commits for repo %s by user %s: %w", repo, username, err)
+			}
+
+			// 累加当前页的提交数
+			userCommits += len(commits)
+
+			// 检查是否有下一页，没有则退出循环
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
+		}
+
+		// 将结果存入 map
+		userCommitsCount[repo] = userCommits
+	}
+
+	return userCommitsCount, nil
 }
