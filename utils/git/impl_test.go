@@ -239,3 +239,27 @@ func TestGetUserMergedPullRequestsByRepo(t *testing.T) {
 	// 	t.Logf("Merged pull requests by user in repo %s: %d", repo, count)
 	// }
 }
+
+func TestGetTotalCodeReviewsByRepo(t *testing.T) {
+	ctx := context.Background()
+	client := git.NewGitClient()
+
+	result, err := client.GetTotalCodeReviewsByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	for repo, count := range result {
+		t.Logf("Total code reviews for repo %s: %d", repo, count)
+	}
+}
+
+func TestGetUserCodeReviewsByRepo(t *testing.T) {
+	ctx := context.Background()
+	client := git.NewGitClient()
+
+	result, err := client.GetUserCodeReviewsByRepo(ctx, username)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	for repo, count := range result {
+		t.Logf("User's code reviews for repo %s: %d", repo, count)
+	}
+}
