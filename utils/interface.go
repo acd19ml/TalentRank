@@ -17,6 +17,8 @@ type Service interface {
 	GetUserMergedPullRequestsByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetTotalCodeReviewsByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetUserCodeReviewsByRepo(ctx context.Context, username string) (map[string]int, error)
+	GetForksByRepo(ctx context.Context, username string) (map[string]int, error)
+	GetRepoForks(ctx context.Context, owner, repoName string) (int, error)
 	// Nation
 	GetName(ctx context.Context, username string) (string, error)
 	GetCompany(ctx context.Context, username string) (string, error)
