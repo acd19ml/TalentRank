@@ -3,8 +3,12 @@ package git
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/acd19ml/TalentRank/utils"
 	"github.com/google/go-github/github"
 )
@@ -290,7 +294,7 @@ func (g *Git) GetRepositories(ctx context.Context, username string) ([]string, e
 	return reposList, nil
 }
 
-func (g *Git) GetRepoStarsMap(ctx context.Context, username string) (map[string]int, error) {
+func (g *Git) GetStarsByRepo(ctx context.Context, username string) (map[string]int, error) {
 	// 初始化一个 map，用于存储仓库名和 stars 数量
 	repoStarsMap := make(map[string]int)
 
@@ -338,76 +342,309 @@ func (g *Git) GetDependentRepositories(ctx context.Context, username string) (in
 	return totalDependents, nil
 }
 
-// GetLineChanges 获取指定用户指定仓库的代码行变换总数
-func (g *Git) GetLineChanges(ctx context.Context, username, repoName string) (int, error) {
-	// 初始化变更行数
-	lineChanges := 0
+func (g *Git) GetTotalCommitsByRepo(ctx context.Context, username string) (map[string]int, error) {
+	repoCommitsCount := make(map[string]int)
 
-	// 设置提交的分页参数
-	commitOpts := &github.CommitsListOptions{ListOptions: github.ListOptions{PerPage: 100}}
-
-	// 获取指定仓库的提交记录
-	for {
-		commits, commitResp, err := g.client.Repositories.ListCommits(ctx, username, repoName, commitOpts)
-		if err != nil {
-			return 0, err
-		}
-
-		for _, commit := range commits {
-			// 获取每个提交的变更信息
-			commitDetails, _, err := g.client.Repositories.GetCommit(ctx, username, repoName, commit.GetSHA())
-			if err != nil {
-				return 0, err
-			}
-			for _, file := range commitDetails.Files {
-				lineChanges += file.GetChanges() // 累加变更行数
-			}
-		}
-
-		// 如果没有下一页，则退出循环
-		if commitResp.NextPage == 0 {
-			break
-		}
-		commitOpts.Page = commitResp.NextPage
+	// 获取用户的所有仓库
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories for user %s: %w", username, err)
 	}
 
-	return lineChanges, nil
+	// 遍历每个仓库，抓取并解析提交总数
+	for _, repo := range repos {
+		url := fmt.Sprintf("https://github.com/%s/%s", username, repo)
+
+		// 发起 HTTP GET 请求获取 HTML
+		resp, err := http.Get(url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch repo page for %s: %w", repo, err)
+		}
+		defer resp.Body.Close()
+
+		// 使用 goquery 加载 HTML 文档
+		doc, err := goquery.NewDocumentFromReader(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse HTML for repo %s: %w", repo, err)
+		}
+
+		// 查找提交总数元素
+		var commitCount int
+		doc.Find("span[data-component='text'] .fgColor-default").Each(func(i int, s *goquery.Selection) {
+			// 提取文本内容，格式如 "9 Commits"
+			text := strings.TrimSpace(s.Text())
+			parts := strings.Fields(text)
+			if len(parts) > 0 {
+				// 移除逗号并转换为整数
+				countStr := strings.ReplaceAll(parts[0], ",", "")
+				commitCount, _ = strconv.Atoi(countStr)
+			}
+		})
+
+		// 将结果存入 map
+		repoCommitsCount[repo] = commitCount
+	}
+
+	return repoCommitsCount, nil
 }
 
-// GetTotalLineChanges 获取指定用户的所有仓库的代码行变换总数
-func (g *Git) GetTotalLineChanges(ctx context.Context, username string) (int, error) {
-	// 初始化总变更行数
-	totalLineChanges := 0
+func (g *Git) GetUserCommitsByRepo(ctx context.Context, username string) (map[string]int, error) {
+	// 初始化结果 map
+	userCommitsCount := make(map[string]int)
 
-	// 设置分页参数
-	opts := &github.RepositoryListOptions{
-		ListOptions: github.ListOptions{PerPage: 50},
+	// 获取用户的所有仓库
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories for user %s: %w", username, err)
 	}
 
-	// 获取所有仓库并累计变更行数
-	for {
-		repos, resp, err := g.client.Repositories.List(ctx, username, opts)
-		if err != nil {
-			return 0, err
+	// 遍历每个仓库，获取该用户的提交总数
+	for _, repo := range repos {
+		// 设置分页参数，按用户名过滤每页最多 100 个提交
+		opts := &github.CommitsListOptions{
+			Author:      username, // 只获取该用户的提交
+			ListOptions: github.ListOptions{PerPage: 100},
 		}
 
-		for _, repo := range repos {
-			repoName := repo.GetName() // 获取仓库名称
+		userCommits := 0
 
-			// 调用 GetLineChanges 获取每个仓库的行变更数
-			lineChanges, err := g.GetLineChanges(ctx, username, repoName)
+		// 获取仓库的用户提交，统计总数
+		for {
+			commits, resp, err := g.client.Repositories.ListCommits(ctx, username, repo, opts)
 			if err != nil {
-				return 0, err
+				return nil, fmt.Errorf("failed to get commits for repo %s by user %s: %w", repo, username, err)
 			}
-			totalLineChanges += lineChanges // 累加总变更行数
+
+			// 累加当前页的提交数
+			userCommits += len(commits)
+
+			// 检查是否有下一页，没有则退出循环
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
 		}
 
-		// 如果没有下一页，则退出循环
-		if resp.NextPage == 0 {
-			break
-		}
-		opts.Page = resp.NextPage
+		// 将结果存入 map
+		userCommitsCount[repo] = userCommits
 	}
 
-	return totalLineChanges, nil
+	return userCommitsCount, nil
+}
+
+func (g *Git) GetTotalIssuesByRepo(ctx context.Context, username string) (map[string]int, error) {
+	issuesCount := make(map[string]int)
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories: %w", err)
+	}
+
+	for _, repo := range repos {
+		opts := &github.IssueListByRepoOptions{
+			State: "closed",
+			ListOptions: github.ListOptions{
+				PerPage: 100,
+			},
+		}
+		totalIssues := 0
+		for {
+			issues, resp, err := g.client.Issues.ListByRepo(ctx, username, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list issues for repo %s: %w", repo, err)
+			}
+			totalIssues += len(issues)
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
+		}
+		issuesCount[repo] = totalIssues
+	}
+	return issuesCount, nil
+}
+
+func (g *Git) GetUserSolvedIssuesByRepo(ctx context.Context, username string) (map[string]int, error) {
+	userIssuesCount := make(map[string]int)
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories: %w", err)
+	}
+
+	for _, repo := range repos {
+		opts := &github.IssueListByRepoOptions{
+			State: "closed",
+			ListOptions: github.ListOptions{
+				PerPage: 100,
+			},
+		}
+		userIssues := 0
+		for {
+			issues, resp, err := g.client.Issues.ListByRepo(ctx, username, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list issues for repo %s: %w", repo, err)
+			}
+			for _, issue := range issues {
+				if issue.Assignee != nil && issue.Assignee.GetLogin() == username {
+					userIssues++
+				}
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
+		}
+		userIssuesCount[repo] = userIssues
+	}
+	return userIssuesCount, nil
+}
+
+func (g *Git) GetTotalPullRequestsByRepo(ctx context.Context, username string) (map[string]int, error) {
+	prCount := make(map[string]int)
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories: %w", err)
+	}
+
+	for _, repo := range repos {
+		opts := &github.PullRequestListOptions{
+			State: "closed",
+			ListOptions: github.ListOptions{
+				PerPage: 100,
+			},
+		}
+		totalPRs := 0
+		for {
+			prs, resp, err := g.client.PullRequests.List(ctx, username, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list pull requests for repo %s: %w", repo, err)
+			}
+			totalPRs += len(prs)
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
+		}
+		prCount[repo] = totalPRs
+	}
+	return prCount, nil
+}
+
+func (g *Git) GetUserMergedPullRequestsByRepo(ctx context.Context, username string) (map[string]int, error) {
+	userPRCount := make(map[string]int)
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories: %w", err)
+	}
+
+	for _, repo := range repos {
+		opts := &github.PullRequestListOptions{
+			State: "closed",
+			ListOptions: github.ListOptions{
+				PerPage: 100,
+			},
+		}
+		userPRs := 0
+		for {
+			prs, resp, err := g.client.PullRequests.List(ctx, username, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list pull requests for repo %s: %w", repo, err)
+			}
+			for _, pr := range prs {
+				if pr.User != nil && pr.User.GetLogin() == username {
+					userPRs++
+				}
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
+		}
+		userPRCount[repo] = userPRs
+	}
+	return userPRCount, nil
+}
+
+func (g *Git) GetTotalCodeReviewsByRepo(ctx context.Context, username string) (map[string]int, error) {
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories for user %s: %w", username, err)
+	}
+
+	reviewCount := make(map[string]int)
+
+	for _, repo := range repos {
+		opts := &github.PullRequestListOptions{
+			ListOptions: github.ListOptions{PerPage: 100},
+		}
+		totalReviews := 0
+
+		for {
+			pullRequests, resp, err := g.client.PullRequests.List(ctx, username, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list pull requests for repo %s: %w", repo, err)
+			}
+
+			for _, pr := range pullRequests {
+				reviews, _, err := g.client.PullRequests.ListReviews(ctx, username, repo, pr.GetNumber(), nil)
+				if err != nil {
+					return nil, fmt.Errorf("failed to list reviews for repo %s PR #%d: %w", repo, pr.GetNumber(), err)
+				}
+				totalReviews += len(reviews)
+			}
+
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
+		}
+
+		reviewCount[repo] = totalReviews
+	}
+
+	return reviewCount, nil
+}
+
+func (g *Git) GetUserCodeReviewsByRepo(ctx context.Context, username string) (map[string]int, error) {
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories for user %s: %w", username, err)
+	}
+
+	userReviewCount := make(map[string]int)
+
+	for _, repo := range repos {
+		opts := &github.PullRequestListOptions{
+			ListOptions: github.ListOptions{PerPage: 100},
+		}
+		userReviews := 0
+
+		for {
+			pullRequests, resp, err := g.client.PullRequests.List(ctx, username, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list pull requests for repo %s: %w", repo, err)
+			}
+
+			for _, pr := range pullRequests {
+				reviews, _, err := g.client.PullRequests.ListReviews(ctx, username, repo, pr.GetNumber(), nil)
+				if err != nil {
+					return nil, fmt.Errorf("failed to list reviews for repo %s PR #%d: %w", repo, pr.GetNumber(), err)
+				}
+
+				for _, review := range reviews {
+					if review.GetUser().GetLogin() == username {
+						userReviews++
+					}
+				}
+			}
+
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
+		}
+
+		userReviewCount[repo] = userReviews
+	}
+
+	return userReviewCount, nil
 }
