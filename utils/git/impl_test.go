@@ -2,6 +2,7 @@ package git_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -81,6 +82,20 @@ func TestGetReadme(t *testing.T) {
 	assert.LessOrEqual(t, len(content), charLimit*21) // 假设最多100个repo
 }
 
+func TestGetRepoStars(t *testing.T) {
+	ctx := context.Background()
+	repoName := "wgan-gp" // 你可以替换为你想要测试的 GitHub 仓库名
+
+	// 调用 GetRepoStars 方法
+	stars, err := client.GetRepoStars(ctx, username, repoName)
+
+	// 检查是否返回了错误
+	assert.NoError(t, err)
+
+	// 检查 stars 数量是否非负
+	assert.GreaterOrEqual(t, stars, 0, "Stars count should be non-negative")
+}
+
 func TestGetCommits(t *testing.T) {
 
 	ctx := context.Background()
@@ -119,6 +134,27 @@ func TestGetRepositories(t *testing.T) {
 	repos, err := client.GetRepositories(ctx, username)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, repos, "Repositories list should not be empty")
+}
+
+func TestGetRepoStarsMap(t *testing.T) {
+	ctx := context.Background()
+	// username := "octocat" // 使用 GitHub 上一个公开的示例用户
+
+	// 调用 GetRepoStarsMap 方法
+	repoStarsMap, err := client.GetRepoStarsMap(ctx, username)
+	fmt.Println(repoStarsMap)
+
+	// 检查是否返回了错误
+	assert.NoError(t, err)
+
+	// 检查返回的 map 是否非空
+	assert.NotNil(t, repoStarsMap)
+	assert.NotEmpty(t, repoStarsMap, "Repo stars map should not be empty")
+
+	// 检查每个仓库的 star 数量是否非负
+	for repo, stars := range repoStarsMap {
+		assert.GreaterOrEqual(t, stars, 0, "Stars count for repo %s should be non-negative", repo)
+	}
 }
 
 func TestGetOrganizations(t *testing.T) {

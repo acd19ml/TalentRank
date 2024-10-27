@@ -8,6 +8,8 @@ type Service interface {
 	GetTotalStars(ctx context.Context, username string) (int, error)
 	GetTotalForks(ctx context.Context, username string) (int, error)
 	GetDependentRepositories(ctx context.Context, username string) (int, error)
+	GetRepoStars(ctx context.Context, owner, repoName string) (int, error)
+	GetRepoStarsMap(ctx context.Context, username string) (map[string]int, error)
 
 	// Nation
 	GetName(ctx context.Context, username string) (string, error)

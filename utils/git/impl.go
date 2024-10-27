@@ -217,6 +217,18 @@ func (g *Git) GetTotalStars(ctx context.Context, username string) (int, error) {
 	return totalStars, nil
 }
 
+func (g *Git) GetRepoStars(ctx context.Context, owner, repoName string) (int, error) {
+	// 获取指定仓库的信息
+	repo, _, err := g.client.Repositories.Get(ctx, owner, repoName)
+	if err != nil {
+		return 0, err
+	}
+
+	// 提取并返回仓库的 star 数量
+	
+	return repo.GetStargazersCount(), nil
+}
+
 // GetTotalForks 获取指定用户的所有仓库 fork 总数
 func (g *Git) GetTotalForks(ctx context.Context, username string) (int, error) {
 	// 初始化 fork 总数
@@ -276,6 +288,32 @@ func (g *Git) GetRepositories(ctx context.Context, username string) ([]string, e
 	}
 
 	return reposList, nil
+}
+
+func (g *Git) GetRepoStarsMap(ctx context.Context, username string) (map[string]int, error) {
+	// 初始化一个 map，用于存储仓库名和 stars 数量
+	repoStarsMap := make(map[string]int)
+
+	// 获取该用户的所有仓库名称
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, err
+	}
+
+	// 遍历每个仓库，获取 stars 数量
+	for _, repoName := range repos {
+		// 调用 GetRepoStars 获取当前仓库的 star 数量
+		stars, err := g.GetRepoStars(ctx, username, repoName)
+		if err != nil {
+			// 如果出错，可以选择跳过该仓库，继续获取其他仓库的 star 数量
+			continue
+		}
+		// 将仓库名和 star 数量存入 map
+		repoStarsMap[repoName] = stars
+	}
+	
+
+	return repoStarsMap, nil
 }
 
 func (g *Git) GetDependentRepositories(ctx context.Context, username string) (int, error) {
