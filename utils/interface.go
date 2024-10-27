@@ -7,7 +7,7 @@ type Service interface {
 	GetFollowers(ctx context.Context, username string) (int, error)
 	GetTotalStars(ctx context.Context, username string) (int, error)
 	GetTotalForks(ctx context.Context, username string) (int, error)
-	GetDependentRepositories(ctx context.Context, username string) (int, error)
+	GetDependentRepositoriesByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetStarsByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetTotalCommitsByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetUserCommitsByRepo(ctx context.Context, username string) (map[string]int, error)
@@ -33,4 +33,5 @@ type Service interface {
 	GetRepositories(ctx context.Context, username string) ([]string, error)
 	GetTotalLineChanges(ctx context.Context, username string) (int, error)
 	GetLineChanges(ctx context.Context, username, repoName string) (int, error)
+	GetDependentRepositories(ctx context.Context, username string) (int, error)
 }

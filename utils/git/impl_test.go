@@ -17,7 +17,10 @@ const (
 	username = utils.Username
 )
 
-var client utils.Service
+var (
+	client utils.Service
+	ctx    = context.Background()
+)
 
 func init() {
 	if os.Getenv("GITHUB_TOKEN") == "" {
@@ -27,15 +30,13 @@ func init() {
 }
 
 func TestGetName(t *testing.T) {
-	ctx := context.Background()
+
 	name, err := client.GetName(ctx, username)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, name)
 }
 
 func TestGetCompany(t *testing.T) {
-
-	ctx := context.Background()
 
 	company, err := client.GetCompany(ctx, username)
 	assert.NoError(t, err)
@@ -45,16 +46,12 @@ func TestGetCompany(t *testing.T) {
 
 func TestGetLocation(t *testing.T) {
 
-	ctx := context.Background()
-
 	location, err := client.GetLocation(ctx, username)
 	assert.NoError(t, err)
 	assert.NotNil(t, location)
 }
 
 func TestGetEmail(t *testing.T) {
-
-	ctx := context.Background()
 
 	email, err := client.GetEmail(ctx, username)
 	assert.NoError(t, err)
@@ -64,8 +61,6 @@ func TestGetEmail(t *testing.T) {
 
 func TestGetBio(t *testing.T) {
 
-	ctx := context.Background()
-
 	bio, err := client.GetBio(ctx, username)
 	assert.NoError(t, err)
 	// Bio 可能为空
@@ -73,7 +68,7 @@ func TestGetBio(t *testing.T) {
 }
 
 func TestGetReadme(t *testing.T) {
-	ctx := context.Background()
+
 	charLimit := 200 // 设定一个字符限制
 
 	content, err := client.GetReadme(ctx, username, charLimit)
@@ -83,7 +78,7 @@ func TestGetReadme(t *testing.T) {
 }
 
 func TestGetRepoStars(t *testing.T) {
-	ctx := context.Background()
+
 	repoName := "wgan-gp" // 你可以替换为你想要测试的 GitHub 仓库名
 
 	// 调用 GetRepoStars 方法
@@ -113,8 +108,6 @@ func TestGetRepoForks(t *testing.T) {
 
 func TestGetCommits(t *testing.T) {
 
-	ctx := context.Background()
-
 	charLimit := 200 // 设定一个字符限制
 
 	commits, err := client.GetCommits(ctx, username, charLimit)
@@ -124,35 +117,35 @@ func TestGetCommits(t *testing.T) {
 }
 
 func TestGetFollowers(t *testing.T) {
-	ctx := context.Background()
+
 	followers, err := client.GetFollowers(ctx, username)
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, followers, 0, "Followers count should be non-negative")
 }
 
 func TestGetTotalStars(t *testing.T) {
-	ctx := context.Background()
+
 	totalStars, err := client.GetTotalStars(ctx, username)
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, totalStars, 0, "Total stars count should be non-negative")
 }
 
 func TestGetTotalForks(t *testing.T) {
-	ctx := context.Background()
+
 	totalForks, err := client.GetTotalForks(ctx, username)
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, totalForks, 0, "Total forks count should be non-negative")
 }
 
 func TestGetRepositories(t *testing.T) {
-	ctx := context.Background()
+
 	repos, err := client.GetRepositories(ctx, username)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, repos, "Repositories list should not be empty")
 }
 
 func TestGetStarsByRepo(t *testing.T) {
-	ctx := context.Background()
+
 	// username := "octocat" // 使用 GitHub 上一个公开的示例用户
 
 	// 调用 GetStarsByRepo 方法
@@ -192,13 +185,12 @@ func TestGetForksByRepo(t *testing.T) {
 }
 
 func TestGetOrganizations(t *testing.T) {
-	ctx := context.Background()
+
 	_, err := client.GetOrganizations(ctx, username)
 	assert.NoError(t, err)
 }
 
 func TestGetTotalCommitsByRepo(t *testing.T) {
-	ctx := context.Background()
 
 	// 获取所有仓库的提交总数
 	totalCommitsByRepo, err := client.GetTotalCommitsByRepo(ctx, username)
@@ -213,7 +205,6 @@ func TestGetTotalCommitsByRepo(t *testing.T) {
 }
 
 func TestGetUserCommitsByRepo(t *testing.T) {
-	ctx := context.Background()
 
 	// 获取用户在每个仓库的提交数
 	userCommitsByRepo, err := client.GetUserCommitsByRepo(ctx, username)
@@ -228,8 +219,6 @@ func TestGetUserCommitsByRepo(t *testing.T) {
 }
 
 func TestGetTotalIssuesByRepo(t *testing.T) {
-	ctx := context.Background()
-	client := git.NewGitClient()
 
 	result, err := client.GetTotalIssuesByRepo(ctx, username)
 	assert.NoError(t, err)
@@ -240,8 +229,6 @@ func TestGetTotalIssuesByRepo(t *testing.T) {
 }
 
 func TestGetUserSolvedIssuesByRepo(t *testing.T) {
-	ctx := context.Background()
-	client := git.NewGitClient()
 
 	result, err := client.GetUserSolvedIssuesByRepo(ctx, username)
 	assert.NoError(t, err)
@@ -252,8 +239,6 @@ func TestGetUserSolvedIssuesByRepo(t *testing.T) {
 }
 
 func TestGetTotalPullRequestsByRepo(t *testing.T) {
-	ctx := context.Background()
-	client := git.NewGitClient()
 
 	result, err := client.GetTotalPullRequestsByRepo(ctx, username)
 	assert.NoError(t, err)
@@ -264,8 +249,6 @@ func TestGetTotalPullRequestsByRepo(t *testing.T) {
 }
 
 func TestGetUserMergedPullRequestsByRepo(t *testing.T) {
-	ctx := context.Background()
-	client := git.NewGitClient()
 
 	result, err := client.GetUserMergedPullRequestsByRepo(ctx, username)
 	assert.NoError(t, err)
@@ -276,26 +259,37 @@ func TestGetUserMergedPullRequestsByRepo(t *testing.T) {
 }
 
 func TestGetTotalCodeReviewsByRepo(t *testing.T) {
-	ctx := context.Background()
-	client := git.NewGitClient()
 
 	result, err := client.GetTotalCodeReviewsByRepo(ctx, username)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	for repo, count := range result {
-		t.Logf("Total code reviews for repo %s: %d", repo, count)
-	}
+	// for repo, count := range result {
+	// 	t.Logf("Total code reviews for repo %s: %d", repo, count)
+	// }
 }
 
 func TestGetUserCodeReviewsByRepo(t *testing.T) {
-	ctx := context.Background()
-	client := git.NewGitClient()
 
 	result, err := client.GetUserCodeReviewsByRepo(ctx, username)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	for repo, count := range result {
-		t.Logf("User's code reviews for repo %s: %d", repo, count)
+	// for repo, count := range result {
+	// 	t.Logf("User's code reviews for repo %s: %d", repo, count)
+	// }
+}
+
+func TestGetDependentRepositoriesByRepo(t *testing.T) {
+
+	repoDependentsCount, err := client.GetDependentRepositoriesByRepo(ctx, username)
+
+	// 验证结果
+	assert.NoError(t, err)
+	assert.NotEmpty(t, repoDependentsCount, "repoDependentsCount should not be empty")
+
+	// 打印每个仓库的依赖数量
+	for _, dependents := range repoDependentsCount {
+		// t.Logf("Repo: %s, Dependents: %d", repo, dependents)
+		assert.GreaterOrEqual(t, dependents, 0, "Dependents count should be non-negative")
 	}
 }
 
