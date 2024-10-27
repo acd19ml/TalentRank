@@ -563,3 +563,88 @@ func (g *Git) GetUserMergedPullRequestsByRepo(ctx context.Context, username stri
 	}
 	return userPRCount, nil
 }
+
+func (g *Git) GetTotalCodeReviewsByRepo(ctx context.Context, username string) (map[string]int, error) {
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories for user %s: %w", username, err)
+	}
+
+	reviewCount := make(map[string]int)
+
+	for _, repo := range repos {
+		opts := &github.PullRequestListOptions{
+			ListOptions: github.ListOptions{PerPage: 100},
+		}
+		totalReviews := 0
+
+		for {
+			pullRequests, resp, err := g.client.PullRequests.List(ctx, username, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list pull requests for repo %s: %w", repo, err)
+			}
+
+			for _, pr := range pullRequests {
+				reviews, _, err := g.client.PullRequests.ListReviews(ctx, username, repo, pr.GetNumber(), nil)
+				if err != nil {
+					return nil, fmt.Errorf("failed to list reviews for repo %s PR #%d: %w", repo, pr.GetNumber(), err)
+				}
+				totalReviews += len(reviews)
+			}
+
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
+		}
+
+		reviewCount[repo] = totalReviews
+	}
+
+	return reviewCount, nil
+}
+
+func (g *Git) GetUserCodeReviewsByRepo(ctx context.Context, username string) (map[string]int, error) {
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories for user %s: %w", username, err)
+	}
+
+	userReviewCount := make(map[string]int)
+
+	for _, repo := range repos {
+		opts := &github.PullRequestListOptions{
+			ListOptions: github.ListOptions{PerPage: 100},
+		}
+		userReviews := 0
+
+		for {
+			pullRequests, resp, err := g.client.PullRequests.List(ctx, username, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list pull requests for repo %s: %w", repo, err)
+			}
+
+			for _, pr := range pullRequests {
+				reviews, _, err := g.client.PullRequests.ListReviews(ctx, username, repo, pr.GetNumber(), nil)
+				if err != nil {
+					return nil, fmt.Errorf("failed to list reviews for repo %s PR #%d: %w", repo, pr.GetNumber(), err)
+				}
+
+				for _, review := range reviews {
+					if review.GetUser().GetLogin() == username {
+						userReviews++
+					}
+				}
+			}
+
+			if resp.NextPage == 0 {
+				break
+			}
+			opts.Page = resp.NextPage
+		}
+
+		userReviewCount[repo] = userReviews
+	}
+
+	return userReviewCount, nil
+}
