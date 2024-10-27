@@ -225,7 +225,7 @@ func (g *Git) GetRepoStars(ctx context.Context, owner, repoName string) (int, er
 	}
 
 	// 提取并返回仓库的 star 数量
-	
+
 	return repo.GetStargazersCount(), nil
 }
 
@@ -311,7 +311,6 @@ func (g *Git) GetRepoStarsMap(ctx context.Context, username string) (map[string]
 		// 将仓库名和 star 数量存入 map
 		repoStarsMap[repoName] = stars
 	}
-	
 
 	return repoStarsMap, nil
 }
@@ -337,4 +336,78 @@ func (g *Git) GetDependentRepositories(ctx context.Context, username string) (in
 	}
 
 	return totalDependents, nil
+}
+
+// GetLineChanges 获取指定用户指定仓库的代码行变换总数
+func (g *Git) GetLineChanges(ctx context.Context, username, repoName string) (int, error) {
+	// 初始化变更行数
+	lineChanges := 0
+
+	// 设置提交的分页参数
+	commitOpts := &github.CommitsListOptions{ListOptions: github.ListOptions{PerPage: 100}}
+
+	// 获取指定仓库的提交记录
+	for {
+		commits, commitResp, err := g.client.Repositories.ListCommits(ctx, username, repoName, commitOpts)
+		if err != nil {
+			return 0, err
+		}
+
+		for _, commit := range commits {
+			// 获取每个提交的变更信息
+			commitDetails, _, err := g.client.Repositories.GetCommit(ctx, username, repoName, commit.GetSHA())
+			if err != nil {
+				return 0, err
+			}
+			for _, file := range commitDetails.Files {
+				lineChanges += file.GetChanges() // 累加变更行数
+			}
+		}
+
+		// 如果没有下一页，则退出循环
+		if commitResp.NextPage == 0 {
+			break
+		}
+		commitOpts.Page = commitResp.NextPage
+	}
+
+	return lineChanges, nil
+}
+
+// GetTotalLineChanges 获取指定用户的所有仓库的代码行变换总数
+func (g *Git) GetTotalLineChanges(ctx context.Context, username string) (int, error) {
+	// 初始化总变更行数
+	totalLineChanges := 0
+
+	// 设置分页参数
+	opts := &github.RepositoryListOptions{
+		ListOptions: github.ListOptions{PerPage: 50},
+	}
+
+	// 获取所有仓库并累计变更行数
+	for {
+		repos, resp, err := g.client.Repositories.List(ctx, username, opts)
+		if err != nil {
+			return 0, err
+		}
+
+		for _, repo := range repos {
+			repoName := repo.GetName() // 获取仓库名称
+
+			// 调用 GetLineChanges 获取每个仓库的行变更数
+			lineChanges, err := g.GetLineChanges(ctx, username, repoName)
+			if err != nil {
+				return 0, err
+			}
+			totalLineChanges += lineChanges // 累加总变更行数
+		}
+
+		// 如果没有下一页，则退出循环
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	return totalLineChanges, nil
 }
