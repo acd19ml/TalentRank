@@ -5,8 +5,6 @@ import "context"
 type Service interface {
 	// Rank
 	GetFollowers(ctx context.Context, username string) (int, error)
-	GetTotalStars(ctx context.Context, username string) (int, error)
-	GetTotalForks(ctx context.Context, username string) (int, error)
 	GetDependentRepositoriesByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetStarsByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetTotalCommitsByRepo(ctx context.Context, username string) (map[string]int, error)
@@ -18,7 +16,9 @@ type Service interface {
 	GetTotalCodeReviewsByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetUserCodeReviewsByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetForksByRepo(ctx context.Context, username string) (map[string]int, error)
-	GetRepoForks(ctx context.Context, owner, repoName string) (int, error)
+	GetTotalLineChangesByRepo(ctx context.Context, username string) (map[string]int, error)
+	GetUserLineChangesByRepo(ctx context.Context, username string) (map[string]int, error)
+
 	// Nation
 	GetName(ctx context.Context, username string) (string, error)
 	GetCompany(ctx context.Context, username string) (string, error)
@@ -34,4 +34,5 @@ type Service interface {
 	GetTotalLineChanges(ctx context.Context, username string) (int, error)
 	GetLineChanges(ctx context.Context, username, repoName string) (int, error)
 	GetDependentRepositories(ctx context.Context, username string) (int, error)
+	GetRepoForks(ctx context.Context, owner, repoName string) (int, error)
 }
