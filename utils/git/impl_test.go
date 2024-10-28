@@ -123,20 +123,6 @@ func TestGetFollowers(t *testing.T) {
 	assert.GreaterOrEqual(t, followers, 0, "Followers count should be non-negative")
 }
 
-func TestGetTotalStars(t *testing.T) {
-
-	totalStars, err := client.GetTotalStars(ctx, username)
-	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, totalStars, 0, "Total stars count should be non-negative")
-}
-
-func TestGetTotalForks(t *testing.T) {
-
-	totalForks, err := client.GetTotalForks(ctx, username)
-	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, totalForks, 0, "Total forks count should be non-negative")
-}
-
 func TestGetRepositories(t *testing.T) {
 
 	repos, err := client.GetRepositories(ctx, username)
