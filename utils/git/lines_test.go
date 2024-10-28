@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// TestGetContributorsStats 测试 GetContributorsStats 函数
+// TestGetContributorsStats 测试 GetContributorsStats 函数 ZJK
 func TestGetContributorsStats(t *testing.T) {
 	repoOwner := "THUDM"      // 替换为实际的仓库拥有者
 	repoName := "GLM-4-Voice" // 替换为实际的仓库名称
