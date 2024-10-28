@@ -1,4 +1,4 @@
-package git_test
+package impl_test
 
 import (
 	"context"
@@ -6,18 +6,17 @@ import (
 	"os"
 	"testing"
 
-	"github.com/acd19ml/TalentRank/utils/git"
+	"github.com/acd19ml/TalentRank/apps/git"
+	"github.com/acd19ml/TalentRank/apps/git/impl"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/acd19ml/TalentRank/utils"
 )
 
 const (
-	username = utils.Username
+	username = git.Username
 )
 
 var (
-	client utils.Service
+	client git.Service
 	ctx    = context.Background()
 )
 
@@ -25,7 +24,7 @@ func init() {
 	if os.Getenv("GITHUB_TOKEN") == "" {
 		panic("GITHUB_TOKEN is not set. Please set it before running tests.")
 	}
-	client = git.NewGitClient() // 初始化客户端
+	client = impl.NewGitClient() // 初始化客户端
 }
 
 func TestGetName(t *testing.T) {

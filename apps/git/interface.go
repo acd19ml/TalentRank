@@ -1,4 +1,4 @@
-package utils
+package git
 
 import "context"
 
@@ -7,15 +7,13 @@ type Service interface {
 	GetFollowers(ctx context.Context, username string) (int, error)
 	GetDependentRepositoriesByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetStarsByRepo(ctx context.Context, username string) (map[string]int, error)
-	// GetTotalCommitsByRepo(ctx context.Context, username string) (map[string]int, error)
-	// GetUserCommitsByRepo(ctx context.Context, username string) (map[string]int, error)
+	GetForksByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetTotalIssuesByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetUserSolvedIssuesByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetTotalPullRequestsByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetUserMergedPullRequestsByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetTotalCodeReviewsByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetUserCodeReviewsByRepo(ctx context.Context, username string) (map[string]int, error)
-	GetForksByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetLineChangesByRepo(ctx context.Context, username string) (map[string][]int, error) //[]int{totalChanges, userChanges, totalCommits, userCommits}
 
 	// Nation
@@ -30,6 +28,5 @@ type Service interface {
 	// Tools
 	GetRepoStars(ctx context.Context, owner, repoName string) (int, error)
 	GetRepositories(ctx context.Context, username string) ([]string, error)
-	GetDependentRepositories(ctx context.Context, username string) (int, error)
 	GetRepoForks(ctx context.Context, owner, repoName string) (int, error)
 }

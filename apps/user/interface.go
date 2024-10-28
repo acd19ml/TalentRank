@@ -2,9 +2,9 @@ package user
 
 import (
 	"context"
-	"os/user"
 )
 
 type Service interface {
-	CreateUser(context.Context, string) (*user.User, error)
+	CreateUser(context.Context, string) (*User, error)
+	QueryUser(context.Context, *QueryUserReposRequest) (*UserReposSet, error)
 }

@@ -125,7 +125,7 @@ func (osc *Calculator) CalculateOverallScore(ctx context.Context, username strin
 
 			// 计算项目的技术评分（贡献度 * 项目影响力）
 			projectScore := contribution * projectImpact
-
+			log.Printf("Received %s score: %f\n", repoName, projectScore)
 			// 将项目分数发送到 channel
 			projectScores <- projectScore
 		}(repoName)
