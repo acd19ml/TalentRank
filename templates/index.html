@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>进度条示例</title>
+    <style>
+        #progress {
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #progress-bar {
+            width: 0;
+            height: 30px;
+            background-color: #4caf50;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>点击按钮开始进度</h1>
+<button id="startBtn">开始</button>
+<div id="progress">
+    <div id="progress-bar"></div>
+</div>
+<p id="status"></p>
+
+<script>
+    document.getElementById('startBtn').onclick = function() {
+        const progressBar = document.getElementById('progress-bar');
+        const status = document.getElementById('status');
+        progressBar.style.width = '0%';
+        status.innerText = '';
+
+        fetch('/start', { method: 'POST' }).then(response => {
+            const eventSource = new EventSource('/progress');
+            eventSource.onmessage = function(event) {
+                const percent = event.data;
+                progressBar.style.width = percent;
+                status.innerText = '进度: ' + percent;
+                if (percent === '100%') {
+                    eventSource.close();
+                }
+            };
+        });
+    };
+</script>
+
+</body>
+</html>
