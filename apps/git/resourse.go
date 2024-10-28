@@ -1,4 +1,4 @@
-package utils
+package git
 
 const (
 	// github仓库数据来源

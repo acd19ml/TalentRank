@@ -1,16 +1,16 @@
-package git
+package impl
 
 import (
 	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/acd19ml/TalentRank/utils"
 	"github.com/google/go-github/github"
 )
 
@@ -264,29 +264,6 @@ func (g *Git) GetForksByRepo(ctx context.Context, username string) (map[string]i
 	}
 
 	return repoForksMap, nil
-}
-
-func (g *Git) GetDependentRepositories(ctx context.Context, username string) (int, error) {
-	// 获取用户所有仓库名称
-	repos, err := g.GetRepositories(ctx, username)
-	if err != nil {
-		return 0, err
-	}
-
-	totalDependents := 0
-
-	// 遍历每个仓库，获取其依赖仓库数量
-	for _, repo := range repos {
-		url := fmt.Sprintf("https://github.com/%s/%s/network/dependents", username, repo)
-		count, err := utils.GetDependentRepositories(url)
-		if err != nil {
-			return 0, fmt.Errorf("error fetching dependents for repo %s: %w", repo, err)
-		}
-
-		totalDependents += count
-	}
-
-	return totalDependents, nil
 }
 
 func (g *Git) GetTotalCommitsByRepo(ctx context.Context, username string) (map[string]int, error) {
@@ -596,6 +573,44 @@ func (g *Git) GetUserCodeReviewsByRepo(ctx context.Context, username string) (ma
 	return userReviewCount, nil
 }
 
+// GetDependentRepositorie 获取仓库被依赖数量
+func GetDependentRepositorie(url string) (int, error) {
+	// 发起 GET 请求
+	res, err := http.Get(url)
+	if err != nil {
+		return 0, err
+	}
+	defer res.Body.Close()
+
+	// 检查请求状态
+	if res.StatusCode != 200 {
+		return 0, fmt.Errorf("failed to fetch page: %d %s", res.StatusCode, res.Status)
+	}
+
+	// 使用 goquery 加载 HTML 文档
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	// 正则表达式提取数字部分（去除逗号）
+	repoCount := 0
+	re := regexp.MustCompile(`(\d{1,3}(?:,\d{3})*)\s+Repositories`)
+
+	// 查找包含依赖仓库数量的元素
+	doc.Find("a.btn-link.selected").Each(func(i int, s *goquery.Selection) {
+		text := strings.TrimSpace(s.Text())
+		matches := re.FindStringSubmatch(text)
+		if len(matches) > 1 {
+			// 去除逗号后解析数字
+			countStr := strings.ReplaceAll(matches[1], ",", "")
+			fmt.Sscanf(countStr, "%d", &repoCount)
+		}
+	})
+
+	return repoCount, nil
+}
+
 // GetDependentRepositoriesByRepo 获取每个仓库的依赖数量
 func (g *Git) GetDependentRepositoriesByRepo(ctx context.Context, username string) (map[string]int, error) {
 	// 初始化结果 map
@@ -610,7 +625,7 @@ func (g *Git) GetDependentRepositoriesByRepo(ctx context.Context, username strin
 	// 遍历每个仓库，获取依赖数量
 	for _, repo := range repos {
 		url := fmt.Sprintf("https://github.com/%s/%s/network/dependents", username, repo)
-		count, err := utils.GetDependentRepositories(url)
+		count, err := GetDependentRepositorie(url)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get dependents for repo %s: %w", repo, err)
 		}
@@ -620,22 +635,6 @@ func (g *Git) GetDependentRepositoriesByRepo(ctx context.Context, username strin
 	}
 
 	return repoDependentsCount, nil
-}
-
-// Commit 结构体用来存储提交信息
-type Commit struct {
-	Sha    string `json:"sha"`
-	Author struct {
-		Login string `json:"login"`
-	} `json:"author"`
-}
-
-// CommitDetail 存储每个提交的代码行变化信息
-type CommitDetail struct {
-	Stats struct {
-		Additions int `json:"additions"`
-		Deletions int `json:"deletions"`
-	} `json:"stats"`
 }
 
 // getLineChanges 获取仓库的总增删行数和指定用户的增删行数，并统计提交次数
