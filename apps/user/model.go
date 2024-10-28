@@ -71,6 +71,8 @@ type Repo struct {
 	Star             int    `json:"star"`
 	Fork             int    `json:"fork"`
 	Dependent        int    `json:"dependent"`
+	Commits          int    `json:"commits"`
+	CommitsTotal     int    `json:"commits_total"`
 	Issue            int    `json:"issue"`
 	IssueTotal       int    `json:"issue_total"`
 	PullRequest      int    `json:"pull_request"`
