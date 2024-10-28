@@ -68,8 +68,8 @@ func (u *UserServiceImpl) save(ctx context.Context, ins *user.UserRepos) error {
 	for _, repo := range ins.Repos {
 		// 执行插入语句
 		result, err := rstmt.ExecContext(ctx,
-			repo.Id, ins.Id, repo.Repo, repo.Star, repo.Fork, repo.Dependent,
-			repo.Issue, repo.IssueTotal, repo.PullRequest, repo.PullRequestTotal,
+			repo.Id, ins.Id, repo.Repo, repo.Star, repo.Fork, repo.Dependent, repo.Commits,
+			repo.CommitsTotal, repo.Issue, repo.IssueTotal, repo.PullRequest, repo.PullRequestTotal,
 			repo.CodeReview, repo.CodeReviewTotal, repo.LineChange, repo.LineChangeTotal,
 		)
 		if err != nil {

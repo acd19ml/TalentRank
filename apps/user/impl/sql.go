@@ -15,8 +15,8 @@ const (
 
 	InsertRepoSQL = `
 	INSERT INTO Repo (
-		id, user_id, repo, star, fork, dependent, issue, 
-		issue_total, pull_request, pull_request_total, 
+		id, user_id, repo, star, fork, dependent, commits, commits_total,
+		issue, issue_total, pull_request, pull_request_total, 
 		code_review, code_review_total, line_change, line_change_total
 	) VALUES (
 	 	?, ?, ?, ?, ?, ?, ?, 
@@ -51,6 +51,8 @@ const (
 //     star INT DEFAULT 0,
 //     fork INT DEFAULT 0,
 //     dependent INT DEFAULT 0,
+// 	   commits INT DEFAULT 0,
+// 	   commits_total INT DEFAULT 0,
 //     issue INT DEFAULT 0,
 //     issue_total INT DEFAULT 0,
 //     pull_request INT DEFAULT 0,
