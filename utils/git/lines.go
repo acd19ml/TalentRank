@@ -22,7 +22,7 @@ type CommitDetail struct {
 	} `json:"stats"`
 }
 
-// GetContributorsStats 获取贡献者的提交次数和代码行数变换
+// GetContributorsStats 获取贡献者的提交次数和代码行数变换 ZJK
 func GetContributorsStats(repoOwner, repoName string) (map[string]struct {
 	Commits   int
 	Additions int
