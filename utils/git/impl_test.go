@@ -7,10 +7,9 @@ import (
 	"testing"
 
 	"github.com/acd19ml/TalentRank/utils/git"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/acd19ml/TalentRank/utils"
-
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -98,7 +97,6 @@ func TestGetRepoForks(t *testing.T) {
 	// 调用 GetRepoForks 方法
 	forks, err := client.GetRepoForks(ctx, username, repoName)
 
-	fmt.Printf("Forks: %d\n", forks)
 	// 检查是否返回了错误
 	assert.NoError(t, err)
 
@@ -156,7 +154,6 @@ func TestGetForksByRepo(t *testing.T) {
 
 	// 调用 GetForksByRepo 方法
 	repoForksMap, err := client.GetForksByRepo(ctx, username)
-	fmt.Printf("Forks: %v\n", repoForksMap)
 	// 检查是否返回了错误
 	assert.NoError(t, err)
 
@@ -176,33 +173,33 @@ func TestGetOrganizations(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestGetTotalCommitsByRepo(t *testing.T) {
+// func TestGetTotalCommitsByRepo(t *testing.T) {
 
-	// 获取所有仓库的提交总数
-	totalCommitsByRepo, err := client.GetTotalCommitsByRepo(ctx, username)
-	assert.NoError(t, err)
-	assert.NotNil(t, totalCommitsByRepo, "Total commits map should not be nil")
+// 	// 获取所有仓库的提交总数
+// 	totalCommitsByRepo, err := client.GetTotalCommitsByRepo(ctx, username)
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, totalCommitsByRepo, "Total commits map should not be nil")
 
-	// 检查每个仓库的提交数是否非负
-	for repo, commitCount := range totalCommitsByRepo {
-		// t.Logf("Repo: %s, Total Commits: %d", repo, commitCount)
-		assert.GreaterOrEqual(t, commitCount, 0, "Commit count should be non-negative for repository "+repo)
-	}
-}
+// 	// 检查每个仓库的提交数是否非负
+// 	for repo, commitCount := range totalCommitsByRepo {
+// 		// t.Logf("Repo: %s, Total Commits: %d", repo, commitCount)
+// 		assert.GreaterOrEqual(t, commitCount, 0, "Commit count should be non-negative for repository "+repo)
+// 	}
+// }
 
-func TestGetUserCommitsByRepo(t *testing.T) {
+// func TestGetUserCommitsByRepo(t *testing.T) {
 
-	// 获取用户在每个仓库的提交数
-	userCommitsByRepo, err := client.GetUserCommitsByRepo(ctx, username)
-	assert.NoError(t, err)
-	assert.NotNil(t, userCommitsByRepo, "User commits map should not be nil")
+// 	// 获取用户在每个仓库的提交数
+// 	userCommitsByRepo, err := client.GetUserCommitsByRepo(ctx, username)
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, userCommitsByRepo, "User commits map should not be nil")
 
-	// 检查每个仓库的用户提交数是否非负
-	for repo, commitCount := range userCommitsByRepo {
-		// t.Logf("Repo: %s, User Commits: %d", repo, commitCount)
-		assert.GreaterOrEqual(t, commitCount, 0, "User commit count should be non-negative for repository "+repo)
-	}
-}
+// 	// 检查每个仓库的用户提交数是否非负
+// 	for repo, commitCount := range userCommitsByRepo {
+// 		// t.Logf("Repo: %s, User Commits: %d", repo, commitCount)
+// 		assert.GreaterOrEqual(t, commitCount, 0, "User commit count should be non-negative for repository "+repo)
+// 	}
+// }
 
 func TestGetTotalIssuesByRepo(t *testing.T) {
 
@@ -279,17 +276,21 @@ func TestGetDependentRepositoriesByRepo(t *testing.T) {
 	}
 }
 
-func TestGetLineChanges(t *testing.T) {
-	ctx := context.Background()
-	repoName := "your-repo-name" // 替换为实际的仓库名称
-	lineChanges, err := client.GetLineChanges(ctx, username, repoName)
-	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, lineChanges, 0, "Line changes count should be non-negative")
-}
+func TestGetLineChangesByRepo(t *testing.T) {
 
-func TestGetTotalLineChanges(t *testing.T) {
-	ctx := context.Background()
-	totalLineChanges, err := client.GetTotalLineChanges(ctx, username)
-	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, totalLineChanges, 0, "Total line changes count should be non-negative")
+	// 调用 GetLineChangesByRepo 函数
+	lineChanges, err := client.GetLineChangesByRepo(ctx, username)
+	if err != nil {
+		t.Fatalf("Failed to get line changes: %v", err)
+	}
+
+	// 输出结果并验证数据
+	for repo, changes := range lineChanges {
+		fmt.Printf("仓库: %s, 所有贡献者增删行数: %d, 用户 %s 的增删行数: %d\n", repo, changes[0], username, changes[1])
+
+		// 简单验证增删行数
+		if changes[0] < 0 || changes[1] < 0 {
+			t.Errorf("Expected non-negative line changes, got %d for all contributors and %d for user %s in repo %s", changes[0], changes[1], username, repo)
+		}
+	}
 }

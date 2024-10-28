@@ -3,6 +3,7 @@ package git
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -212,36 +213,6 @@ func (g *Git) GetRepoForks(ctx context.Context, owner, repoName string) (int, er
 
 	// 提取并返回仓库的 fork 数量
 	return repo.GetForksCount(), nil
-}
-
-// GetRepositories 获取指定用户的所有仓库名称
-func (g *Git) GetRepositories(ctx context.Context, username string) ([]string, error) {
-	var reposList []string
-
-	// 设置分页参数
-	opts := &github.RepositoryListOptions{
-		ListOptions: github.ListOptions{PerPage: 50},
-	}
-
-	// 获取所有仓库名称
-	for {
-		repos, resp, err := g.client.Repositories.List(ctx, username, opts)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, repo := range repos {
-			reposList = append(reposList, repo.GetName())
-		}
-
-		// 如果没有下一页，则退出循环
-		if resp.NextPage == 0 {
-			break
-		}
-		opts.Page = resp.NextPage
-	}
-
-	return reposList, nil
 }
 
 func (g *Git) GetStarsByRepo(ctx context.Context, username string) (map[string]int, error) {
@@ -649,4 +620,95 @@ func (g *Git) GetDependentRepositoriesByRepo(ctx context.Context, username strin
 	}
 
 	return repoDependentsCount, nil
+}
+
+// Commit 结构体用来存储提交信息
+type Commit struct {
+	Sha    string `json:"sha"`
+	Author struct {
+		Login string `json:"login"`
+	} `json:"author"`
+}
+
+// CommitDetail 存储每个提交的代码行变化信息
+type CommitDetail struct {
+	Stats struct {
+		Additions int `json:"additions"`
+		Deletions int `json:"deletions"`
+	} `json:"stats"`
+}
+
+// getLineChanges 获取仓库的总增删行数和指定用户的增删行数，并统计提交次数
+func (g *Git) getLineChanges(ctx context.Context, repoOwner, repoName, username string) (int, int, int, int, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits", repoOwner, repoName)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return 0, 0, 0, 0, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	var commits []Commit
+	_, err = g.client.Do(ctx, req, &commits)
+	if err != nil {
+		return 0, 0, 0, 0, fmt.Errorf("request failed: %v", err)
+	}
+
+	// 初始化计数器
+	totalAdditions, totalDeletions := 0, 0
+	userAdditions, userDeletions := 0, 0
+	totalCommits, userCommits := 0, 0
+
+	for _, commit := range commits {
+		// 增加总提交计数
+		totalCommits++
+
+		// 获取每个提交的详细信息
+		detailURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits/%s", repoOwner, repoName, commit.Sha)
+		detailReq, err := http.NewRequestWithContext(ctx, "GET", detailURL, nil)
+		if err != nil {
+			log.Printf("failed to create request for commit detail: %v", err)
+			continue
+		}
+
+		var commitDetail CommitDetail
+		_, err = g.client.Do(ctx, detailReq, &commitDetail)
+		if err != nil {
+			log.Printf("failed to fetch commit details: %v", err)
+			continue
+		}
+
+		// 累加所有贡献者的增删行数
+		totalAdditions += commitDetail.Stats.Additions
+		totalDeletions += commitDetail.Stats.Deletions
+
+		// 如果提交者是指定用户，则增加用户的提交计数并累加其增删行数
+		if commit.Author.Login == username {
+			userCommits++
+			userAdditions += commitDetail.Stats.Additions
+			userDeletions += commitDetail.Stats.Deletions
+		}
+	}
+
+	// 返回所有贡献者的增删行数总和、用户的增删行数总和，以及总提交次数和用户提交次数
+	return totalAdditions + totalDeletions, userAdditions + userDeletions, totalCommits, userCommits, nil
+}
+
+// GetLineChangesByRepo 获取用户所有仓库的增删行数信息，包含总提交和用户提交
+func (g *Git) GetLineChangesByRepo(ctx context.Context, username string) (map[string][]int, error) {
+	repos, err := g.GetRepositories(ctx, username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories: %v", err)
+	}
+
+	lineChanges := make(map[string][]int)
+	for _, repo := range repos {
+		totalChanges, userChanges, totalCommits, userCommits, err := g.getLineChanges(ctx, username, repo, username)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get line changes for repo %s: %v", repo, err)
+		}
+
+		// 将总增删行数、用户增删行数、总提交数、用户提交数存入 map
+		lineChanges[repo] = []int{totalChanges, userChanges, totalCommits, userCommits}
+	}
+
+	return lineChanges, nil
 }
