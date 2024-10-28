@@ -2,8 +2,8 @@ package utils
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"sync"
 )
 
 type Calculator struct {
@@ -17,76 +17,133 @@ func NewCalculator(service Service) *Calculator {
 // CalculateOverallScore 计算开发者的最终技术评分
 func (osc *Calculator) CalculateOverallScore(ctx context.Context, username string) (float64, error) {
 	// 权重设置
-	wStar := 3.0          // Star 权重
-	wFork := 2.0          // Fork 权重
-	wDependent := 1.0     // Dependents 权重
-	wFollowers := 0.05    // Followers 权重
-	wAchievements := 0.05 // Achievements 权重
+	wStar := 3.0      // Star 权重
+	wFork := 2.0      // Fork 权重
+	wDependent := 1.0 // Dependents 权重
+	wFollowers := 0.1 // Followers 权重
 
-	// 获取用户的影响力数据
-	totalFollowers, err := osc.service.GetFollowers(ctx, username)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get followers count: %w", err)
+	var wg sync.WaitGroup
+	var totalFollowers int
+	var repositories []string
+	var totalScore float64
+
+	var followersErr, reposErr error
+
+	// 使用 WaitGroup 和 Goroutines 并发执行每个 Get 方法
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		totalFollowers, followersErr = osc.service.GetFollowers(ctx, username)
+		if followersErr != nil {
+			log.Printf("Failed to get followers count: %v", followersErr)
+		}
+		log.Println("GetFollowers completed")
+	}()
+
+	go func() {
+		defer wg.Done()
+		repositories, reposErr = osc.service.GetRepositories(ctx, username)
+		if reposErr != nil {
+			log.Printf("Failed to get repositories: %v", reposErr)
+		}
+		log.Println("GetRepositories completed")
+	}()
+
+	// 等待所有数据获取完成
+	wg.Wait()
+
+	if followersErr != nil {
+		return 0, followersErr
 	}
-	log.Println("GetFollowers completed")
-
-	// 获取用户的项目数据
-	repositories, err := osc.service.GetRepositories(ctx, username)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get repositories: %w", err)
+	if reposErr != nil {
+		return 0, reposErr
 	}
-	log.Println("GetRepositories completed")
 
-	// 初始化总分
-	totalScore := 0.0
+	// 使用 channel 和 WaitGroup 来处理并发项目评分计算
+	projectScores := make(chan float64, len(repositories))
+	var wgProjects sync.WaitGroup
 
-	// 遍历所有项目，计算每个项目的贡献度和技术评分
+	// 遍历所有项目，开启协程计算每个项目的技术评分
 	for _, repoName := range repositories {
-		// 计算项目贡献度
-		contribution, err := osc.CalculateContribution(ctx, username, repoName)
-		if err != nil {
-			return 0, fmt.Errorf("failed to calculate contribution for repo %s: %w", repoName, err)
-		}
-		log.Printf("CalculateContribution for %s completed\n", repoName)
+		wgProjects.Add(1)
 
-		// 获取项目的 Star、Fork、Dependents 数据
-		stars, err := osc.service.GetRepoStars(ctx, username, repoName)
-		if err != nil {
-			return 0, fmt.Errorf("failed to get stars for repo %s: %w", repoName, err)
-		}
-		log.Printf("GetRepoStars for %s completed\n", repoName)
+		go func(repoName string) {
+			defer wgProjects.Done()
 
-		forks, err := osc.service.GetRepoForks(ctx, username, repoName)
-		if err != nil {
-			return 0, fmt.Errorf("failed to get forks for repo %s: %w", repoName, err)
-		}
-		log.Printf("GetRepoForks for %s completed\n", repoName)
+			// 为项目级别数据获取并发执行增加 WaitGroup
+			var wgRepo sync.WaitGroup
+			var stars, forks int
+			var dependents map[string]int
+			var contribution float64
 
-		dependents, err := osc.service.GetDependentRepositoriesByRepo(ctx, username)
-		if err != nil {
-			return 0, fmt.Errorf("failed to get dependents for repo %s: %w", repoName, err)
-		}
-		log.Printf("GetDependentRepositoriesByRepo for %s completed\n", repoName)
+			var err1, err2, err3, err4 error
 
-		// 计算项目的影响力权重
-		projectImpact := wStar*float64(stars) + wFork*float64(forks) + wDependent*float64(dependents[repoName])
+			wgRepo.Add(4)
 
-		// 计算项目的技术评分（贡献度 * 项目影响力）
-		projectScore := contribution * projectImpact
+			go func() {
+				defer wgRepo.Done()
+				stars, err1 = osc.service.GetRepoStars(ctx, username, repoName)
+				if err1 != nil {
+					log.Printf("Failed to get stars for repo %s: %v", repoName, err1)
+				}
+				log.Printf("GetRepoStars for %s completed\n", repoName)
+			}()
 
-		// 累加到总分
-		totalScore += projectScore
+			go func() {
+				defer wgRepo.Done()
+				forks, err2 = osc.service.GetRepoForks(ctx, username, repoName)
+				if err2 != nil {
+					log.Printf("Failed to get forks for repo %s: %v", repoName, err2)
+				}
+				log.Printf("GetRepoForks for %s completed\n", repoName)
+			}()
+
+			go func() {
+				defer wgRepo.Done()
+				dependents, err3 = osc.service.GetDependentRepositoriesByRepo(ctx, username)
+				if err3 != nil {
+					log.Printf("Failed to get dependents for repo %s: %v", repoName, err3)
+				}
+				log.Printf("GetDependentRepositoriesByRepo for %s completed\n", repoName)
+			}()
+
+			go func() {
+				defer wgRepo.Done()
+				contribution, err4 = osc.CalculateContribution(ctx, username, repoName)
+				if err4 != nil {
+					log.Printf("Failed to calculate contribution for repo %s: %v", repoName, err4)
+				}
+				log.Printf("CalculateContribution for %s completed\n", repoName)
+			}()
+
+			// 等待项目级别数据获取完成
+			wgRepo.Wait()
+
+			// 计算项目的影响力权重
+			projectImpact := wStar*float64(stars) + wFork*float64(forks) + wDependent*float64(dependents[repoName])
+
+			// 计算项目的技术评分（贡献度 * 项目影响力）
+			projectScore := contribution * projectImpact
+
+			// 将项目分数发送到 channel
+			projectScores <- projectScore
+		}(repoName)
 	}
 
-	// 获取 Achievements 数量
-	achievements, err := osc.service.GetDependentRepositories(ctx, username)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get achievements count: %w", err)
-	}
-	log.Println("GetDependentRepositories (Achievements count) completed")
+	// 在一个独立的协程中等待所有项目评分协程完成
+	go func() {
+		wgProjects.Wait()
+		close(projectScores) // 所有项目计算完成后关闭 channel
+	}()
 
-	// 计算最终技术评分，包括 Followers 和 Achievements 的加权影响
-	overallScore := totalScore * (1 + wFollowers*float64(totalFollowers) + wAchievements*float64(achievements))
+	// 汇总所有项目分数
+	for score := range projectScores {
+		totalScore += score
+	}
+
+	// 计算最终技术评分，包括 Followers 的加权影响
+	overallScore := totalScore * (1 + wFollowers*float64(totalFollowers))
 
 	return overallScore, nil
 }
@@ -102,74 +159,63 @@ func (cc *Calculator) CalculateContribution(ctx context.Context, username, repoN
 	// 初始总权重
 	totalWeight := 0.0
 
-	// 获取项目总数据
-	totalCommits, err := cc.service.GetTotalCommitsByRepo(ctx, username)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get total commits: %w", err)
-	}
-	log.Println("GetTotalCommitsByRepo completed")
+	// 使用 WaitGroup 并发执行每个 Get 方法
+	var wg sync.WaitGroup
+	var totalIssues, totalPullRequests, totalCodeReviews map[string]int
+	var lineChanges map[string][]int
+	var userSolvedIssues, userMergedPRs, userCodeReviews map[string]int
+	var err1, err2, err3, err4, err5, err6, err7 error
 
-	totalIssues, err := cc.service.GetTotalIssuesByRepo(ctx, username)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get total issues: %w", err)
-	}
-	log.Println("GetTotalIssuesByRepo completed")
+	wg.Add(7)
 
-	totalPullRequests, err := cc.service.GetTotalPullRequestsByRepo(ctx, username)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get total pull requests: %w", err)
-	}
-	log.Println("GetTotalPullRequestsByRepo completed")
+	go func() {
+		defer wg.Done()
+		totalIssues, err1 = cc.service.GetTotalIssuesByRepo(ctx, username)
+	}()
 
-	totalCodeReviews, err := cc.service.GetTotalCodeReviewsByRepo(ctx, username)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get total code reviews: %w", err)
-	}
-	log.Println("GetTotalCodeReviewsByRepo completed")
+	go func() {
+		defer wg.Done()
+		totalPullRequests, err2 = cc.service.GetTotalPullRequestsByRepo(ctx, username)
+	}()
 
-	totalLineChanges, err := cc.service.GetTotalLineChanges(ctx, username)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get total line changes: %w", err)
-	}
-	log.Println("GetTotalLineChanges completed")
+	go func() {
+		defer wg.Done()
+		totalCodeReviews, err3 = cc.service.GetTotalCodeReviewsByRepo(ctx, username)
+	}()
 
-	// 获取用户在项目中的贡献数据
-	userCommits, err := cc.service.GetUserCommitsByRepo(ctx, username)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get user commits: %w", err)
-	}
-	log.Println("GetUserCommitsByRepo completed")
+	go func() {
+		defer wg.Done()
+		lineChanges, err4 = cc.service.GetLineChangesByRepo(ctx, username)
+	}()
 
-	userSolvedIssues, err := cc.service.GetUserSolvedIssuesByRepo(ctx, username)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get user solved issues: %w", err)
-	}
-	log.Println("GetUserSolvedIssuesByRepo completed")
+	go func() {
+		defer wg.Done()
+		userSolvedIssues, err5 = cc.service.GetUserSolvedIssuesByRepo(ctx, username)
+	}()
 
-	userMergedPRs, err := cc.service.GetUserMergedPullRequestsByRepo(ctx, username)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get user merged pull requests: %w", err)
-	}
-	log.Println("GetUserMergedPullRequestsByRepo completed")
+	go func() {
+		defer wg.Done()
+		userMergedPRs, err6 = cc.service.GetUserMergedPullRequestsByRepo(ctx, username)
+	}()
 
-	userCodeReviews, err := cc.service.GetUserCodeReviewsByRepo(ctx, username)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get user code reviews: %w", err)
-	}
-	log.Println("GetUserCodeReviewsByRepo completed")
+	go func() {
+		defer wg.Done()
+		userCodeReviews, err7 = cc.service.GetUserCodeReviewsByRepo(ctx, username)
+	}()
 
-	userLineChanges, err := cc.service.GetLineChanges(ctx, username, repoName)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get user line changes: %w", err)
-	}
-	log.Println("GetLineChanges completed")
+	// 等待所有并发获取的数据完成
+	wg.Wait()
 
+	if err := firstNonNilError(err1, err2, err3, err4, err5, err6, err7); err != nil {
+		return 0, err
+	}
 	// 计算贡献度的每一部分并动态调整总权重
 	contribution := 0.0
 
 	// 代码提交贡献
-	if totalCommits[repoName] > 0 {
-		contribution += w1 * float64(userCommits[repoName]) / float64(totalCommits[repoName])
+	// []int{totalChanges, userChanges, totalCommits, userCommits}
+	if len(lineChanges[repoName]) > 2 {
+		contribution += w1 * float64(lineChanges[repoName][3]) / float64(lineChanges[repoName][2])
 		totalWeight += w1
 	}
 
@@ -188,8 +234,8 @@ func (cc *Calculator) CalculateContribution(ctx context.Context, username, repoN
 	}
 
 	// 代码行变更贡献
-	if totalLineChanges > 0 {
-		contribution += w4 * float64(userLineChanges) / float64(totalLineChanges)
+	if len(lineChanges[repoName]) > 0 {
+		contribution += w4 * float64(lineChanges[repoName][1]) / float64(lineChanges[repoName][0])
 		totalWeight += w4
 	}
 
@@ -202,4 +248,14 @@ func (cc *Calculator) CalculateContribution(ctx context.Context, username, repoN
 	finalContribution := contribution / totalWeight
 
 	return finalContribution, nil
+}
+
+// firstNonNilError 返回第一个非空错误
+func firstNonNilError(errors ...error) error {
+	for _, err := range errors {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
