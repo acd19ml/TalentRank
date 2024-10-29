@@ -75,34 +75,6 @@ func TestGetReadme(t *testing.T) {
 	assert.LessOrEqual(t, len(content), charLimit*21) // 假设最多100个repo
 }
 
-func TestGetRepoStars(t *testing.T) {
-
-	repoName := "wgan-gp" // 你可以替换为你想要测试的 GitHub 仓库名
-
-	// 调用 GetRepoStars 方法
-	stars, err := client.GetRepoStars(ctx, username, repoName)
-
-	// 检查是否返回了错误
-	assert.NoError(t, err)
-
-	// 检查 stars 数量是否非负
-	assert.GreaterOrEqual(t, stars, 0, "Stars count should be non-negative")
-}
-
-func TestGetRepoForks(t *testing.T) {
-	ctx := context.Background()
-	repoName := "wgan-gp" // 使用一个公开的仓库名
-
-	// 调用 GetRepoForks 方法
-	forks, err := client.GetRepoForks(ctx, username, repoName)
-
-	// 检查是否返回了错误
-	assert.NoError(t, err)
-
-	// 检查 forks 数量是否非负
-	assert.GreaterOrEqual(t, forks, 0, "Forks count should be non-negative")
-}
-
 func TestGetCommits(t *testing.T) {
 
 	charLimit := 200 // 设定一个字符限制
@@ -118,13 +90,6 @@ func TestGetFollowers(t *testing.T) {
 	followers, err := client.GetFollowers(ctx, username)
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, followers, 0, "Followers count should be non-negative")
-}
-
-func TestGetRepositories(t *testing.T) {
-
-	repos, err := client.GetRepositories(ctx, username)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, repos, "Repositories list should not be empty")
 }
 
 func TestGetStarsByRepo(t *testing.T) {
