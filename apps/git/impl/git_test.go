@@ -6,13 +6,14 @@ import (
 	"os"
 	"testing"
 
+	"github.com/acd19ml/TalentRank/apps"
 	"github.com/acd19ml/TalentRank/apps/git"
 	"github.com/acd19ml/TalentRank/apps/git/impl"
 	"github.com/stretchr/testify/assert"
 )
 
 const (
-	username = git.Username
+	username = apps.Username
 )
 
 var (
@@ -67,22 +68,18 @@ func TestGetBio(t *testing.T) {
 
 func TestGetReadme(t *testing.T) {
 
-	charLimit := 200 // 设定一个字符限制
-
-	content, err := client.GetReadme(ctx, username, charLimit)
+	content, err := client.GetReadme(ctx, username, apps.CharLimit, apps.RepoLimit)
 	assert.NoError(t, err)
 	assert.NotNil(t, content)
-	assert.LessOrEqual(t, len(content), charLimit*21) // 假设最多100个repo
+	assert.LessOrEqual(t, len(content), apps.CharLimit+1) // 假设最多100个repo
 }
 
 func TestGetCommits(t *testing.T) {
 
-	charLimit := 200 // 设定一个字符限制
-
-	commits, err := client.GetCommits(ctx, username, charLimit)
+	commits, err := client.GetCommits(ctx, username, apps.CharLimit, apps.RepoLimit)
 	assert.NoError(t, err)
 	assert.NotNil(t, commits)
-	assert.LessOrEqual(t, len(commits), charLimit*21) // 假设最多100个repo
+	assert.LessOrEqual(t, len(commits), apps.CharLimit+1) // 假设最多100个repo
 }
 
 func TestGetFollowers(t *testing.T) {

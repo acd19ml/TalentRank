@@ -5,6 +5,7 @@ import (
 
 	"github.com/acd19ml/TalentRank/apps/git"
 	"github.com/acd19ml/TalentRank/apps/git/impl"
+	"github.com/acd19ml/TalentRank/apps/user"
 	"github.com/acd19ml/TalentRank/conf"
 )
 
@@ -19,4 +20,6 @@ func NewUserServiceImpl() *ServiceImpl {
 type ServiceImpl struct {
 	db  *sql.DB
 	svc git.Service
+	llm user.LLMService
+	rsp user.LLMResponceService
 }

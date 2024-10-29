@@ -1,6 +1,7 @@
 package user
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -61,7 +62,7 @@ type User struct {
 	Commits         string   `json:"commits"`
 	Score           float64  `json:"score"`
 	PossibleNation  string   `json:"possible_nation"`
-	ConfidenceLevel int      `json:"confidence_level"`
+	ConfidenceLevel string   `json:"confidence_level"`
 }
 
 func (r *Repo) Validate() error {
@@ -73,6 +74,19 @@ func (r *Repo) InjectDefault() {
 	if r.Id == "" {
 		r.Id = uuid.New().String()
 	}
+}
+
+type UserResponceByLLM struct {
+	PossibleNation  string `json:"possible_nation"`
+	ConfidenceLevel string `json:"confidence_level"`
+}
+
+func (r *UserResponceByLLM) UnmarshalToUserResponceByLLM(data []byte) (*UserResponceByLLM, error) {
+	return r, json.Unmarshal(data, r)
+}
+
+type LLMResponceService interface {
+	UnmarshalToUserResponceByLLM(data []byte) (*UserResponceByLLM, error)
 }
 
 type Repo struct {

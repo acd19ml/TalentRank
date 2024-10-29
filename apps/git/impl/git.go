@@ -80,7 +80,7 @@ func (g *Git) GetOrganizations(ctx context.Context, username string) ([]string, 
 	return orgsList, nil
 }
 
-func (g *Git) GetReadme(ctx context.Context, username string, charLimit int) (string, error) {
+func (g *Git) GetReadme(ctx context.Context, username string, charLimit int, repoLimit int) (string, error) {
 	repos, err := g.GetRepositories(ctx, username)
 	if err != nil {
 		return "", err
@@ -111,8 +111,8 @@ func (g *Git) GetReadme(ctx context.Context, username string, charLimit int) (st
 		}
 
 		// 确保总内容不会超过最大字符限制
-		if len(contents)+len(content) > charLimit*20 {
-			contents += content[:charLimit*20-len(contents)] + "..."
+		if len(contents)+len(content) > charLimit*repoLimit {
+			contents += content[:charLimit*repoLimit-len(contents)] + "..."
 			break
 		}
 
@@ -122,7 +122,7 @@ func (g *Git) GetReadme(ctx context.Context, username string, charLimit int) (st
 	return contents, nil
 }
 
-func (g *Git) GetCommits(ctx context.Context, username string, charLimit int) (string, error) {
+func (g *Git) GetCommits(ctx context.Context, username string, charLimit int, repoLimit int) (string, error) {
 	repos, err := g.GetRepositories(ctx, username)
 	if err != nil {
 		return "", err
@@ -174,8 +174,8 @@ func (g *Git) GetCommits(ctx context.Context, username string, charLimit int) (s
 		}
 
 		allCommits += fmt.Sprintf("Repo: %s\n%s\n", repo, repoCommits)
-		if len(allCommits) > charLimit*20 {
-			allCommits = allCommits[:charLimit*20] + "..."
+		if len(allCommits) > charLimit*repoLimit {
+			allCommits = allCommits[:charLimit*repoLimit] + "..."
 			break
 		}
 	}
