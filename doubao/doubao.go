@@ -14,11 +14,11 @@ import (
 
 type InputData struct {
 	Model    string              `json:"model"`
-	Messages []map[string]string `json:"messages"`
+	Messages []map[string]string `json:"messag:qes"`
 }
 
 func main() {
-	inputFile, err := os.Open("input.json")
+	inputFile, err := os.Open("./doubao/input.json")
 	if err != nil {
 		fmt.Printf("无法打开输入文件: %v\n", err)
 		return
