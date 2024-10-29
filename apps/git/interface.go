@@ -3,8 +3,8 @@ package git
 import "context"
 
 type Service interface {
-	// Rank
-	GetFollowers(ctx context.Context, username string) (int, error)
+	// Repo table
+
 	GetDependentRepositoriesByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetStarsByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetForksByRepo(ctx context.Context, username string) (map[string]int, error)
@@ -16,17 +16,14 @@ type Service interface {
 	GetUserCodeReviewsByRepo(ctx context.Context, username string) (map[string]int, error)
 	GetLineChangesByRepo(ctx context.Context, username string) (map[string][]int, error) //[]int{totalChanges, userChanges, totalCommits, userCommits}
 
-	// Nation
+	// User table
 	GetName(ctx context.Context, username string) (string, error)
 	GetCompany(ctx context.Context, username string) (string, error)
 	GetLocation(ctx context.Context, username string) (string, error)
 	GetEmail(ctx context.Context, username string) (string, error)
 	GetBio(ctx context.Context, username string) (string, error)
 	GetOrganizations(ctx context.Context, username string) ([]string, error)
+	GetFollowers(ctx context.Context, username string) (int, error)
 	GetReadme(ctx context.Context, username string, charLimit int) (string, error)
 	GetCommits(ctx context.Context, username string, charLimit int) (string, error)
-	// Tools
-	GetRepoStars(ctx context.Context, owner, repoName string) (int, error)
-	GetRepositories(ctx context.Context, username string) ([]string, error)
-	GetRepoForks(ctx context.Context, owner, repoName string) (int, error)
 }

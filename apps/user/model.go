@@ -35,14 +35,14 @@ type UserRepos struct {
 	Repos []*Repo
 }
 
-func (ur *UserRepos) Validate() error {
-	return validate.Struct(ur)
+func (u *User) Validate() error {
+	return validate.Struct(u)
 }
 
 // char(36)
-func (ur *UserRepos) InjectDefault() {
-	if ur.Id == "" {
-		ur.Id = uuid.New().String()
+func (u *User) InjectDefault() {
+	if u.Id == "" {
+		u.Id = uuid.New().String()
 	}
 }
 
@@ -62,6 +62,17 @@ type User struct {
 	Score           float64  `json:"score"`
 	PossibleNation  string   `json:"possible_nation"`
 	ConfidenceLevel int      `json:"confidence_level"`
+}
+
+func (r *Repo) Validate() error {
+	return validate.Struct(r)
+}
+
+// char(36)
+func (r *Repo) InjectDefault() {
+	if r.Id == "" {
+		r.Id = uuid.New().String()
+	}
 }
 
 type Repo struct {
