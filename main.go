@@ -30,6 +30,11 @@ type Ranking struct {
 	RankNo   int    `json:"rankno"`
 }
 
+type LocationCount struct {
+	Location string `json:"location"`
+	Count    int    `json:"count"`
+}
+
 // 从 XML 文件中读取数据库配置
 func loadConfig(filename string) (DatabaseConfig, error) {
 	var config DatabaseConfig
@@ -95,6 +100,31 @@ func main() {
 		}
 
 		c.JSON(http.StatusOK, rankings)
+	})
+
+	// 新增的路由来获取地区人数
+	r.GET("/api/locations", func(c *gin.Context) {
+		// 调用存储过程
+		rows, err := db.Query("CALL GetLocation()")
+		if err != nil {
+			fmt.Println("Error calling stored procedure:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+			return
+		}
+		defer rows.Close()
+
+		var locationCounts []LocationCount
+		for rows.Next() {
+			var locationCount LocationCount
+			if err := rows.Scan(&locationCount.Location, &locationCount.Count); err != nil {
+				fmt.Println("Error scanning row:", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+				return
+			}
+			locationCounts = append(locationCounts, locationCount)
+		}
+
+		c.JSON(http.StatusOK, locationCounts)
 	})
 
 	r.Run(":8080") // 在8080端口启动
