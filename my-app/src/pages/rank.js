@@ -1,95 +1,73 @@
 import React, { useEffect, useState } from 'react';
-import { Table } from 'antd';
-import qs from 'qs';
+import { Table, Spin, Alert } from 'antd';
+
 const columns = [
+    {
+        title: 'Rank No',
+        dataIndex: 'rankno',
+        sorter: true,
+        width: '20%',
+    },
     {
         title: 'Name',
         dataIndex: 'name',
         sorter: true,
-        render: (name) => `${name.first} ${name.last}`,
-        width: '20%',
+        width: '30%',
     },
     {
-        title: 'Gender',
-        dataIndex: 'gender',
-        filters: [
-            {
-                text: 'Male',
-                value: 'male',
-            },
-            {
-                text: 'Female',
-                value: 'female',
-            },
-        ],
-        width: '20%',
+        title: 'Location',
+        dataIndex: 'location',
+        width: '30%',
     },
     {
-        title: 'Email',
-        dataIndex: 'email',
+        title: 'Score',
+        dataIndex: 'score',
+        sorter: true,
+        width: '20%',
     },
 ];
-const getRandomuserParams = (params) => ({
-    results: params.pagination?.pageSize,
-    page: params.pagination?.current,
-    ...params,
-});
-const Rank = () => {
-    const [data, setData] = useState();
-    const [loading, setLoading] = useState(false);
-    const [tableParams, setTableParams] = useState({
-        pagination: {
-            current: 1,
-            pageSize: 10,
-        },
-    });
-    const fetchData = () => {
-        setLoading(true);
-        fetch(`https://randomuser.me/api?${qs.stringify(getRandomuserParams(tableParams))}`)
-            .then((res) => res.json())
-            .then(({ results }) => {
-                setData(results);
-                setLoading(false);
-                setTableParams({
-                    ...tableParams,
-                    pagination: {
-                        ...tableParams.pagination,
-                        total: 200,
-                        // 200 is mock data, you should read it from server
-                        // total: data.totalCount,
-                    },
-                });
-            });
-    };
-    useEffect(fetchData, [
-        tableParams.pagination?.current,
-        tableParams.pagination?.pageSize,
-        tableParams?.sortOrder,
-        tableParams?.sortField,
-        JSON.stringify(tableParams.filters),
-    ]);
-    const handleTableChange = (pagination, filters, sorter) => {
-        setTableParams({
-            pagination,
-            filters,
-            sortOrder: Array.isArray(sorter) ? undefined : sorter.order,
-            sortField: Array.isArray(sorter) ? undefined : sorter.field,
-        });
 
-        // `dataSource` is useless since `pageSize` changed
-        if (pagination.pageSize !== tableParams.pagination?.pageSize) {
-            setData([]);
-        }
-    };
+const Rank = () => {
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const response = await fetch('http://localhost:8080/api/rankings');
+                if (!response.ok) {
+                    const errorText = await response.text(); // 获取详细的错误信息
+                    throw new Error(`Network response was not ok: ${errorText}`);
+                }
+                const result = await response.json();
+                setData(result);
+            } catch (err) {
+                console.error("Fetch error:", err); // 日志输出
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    if (loading) {
+        return <Spin tip="Loading..." />;
+    }
+
+    if (error) {
+        return <Alert message="Error" description={error} type="error" />;
+    }
+
     return (
         <Table
             columns={columns}
-            rowKey={(record) => record.login.uuid}
+            rowKey={(record) => record.rankno} // Assuming rankno is unique
             dataSource={data}
-            pagination={tableParams.pagination}
-            loading={loading}
-            onChange={handleTableChange}
         />
     );
 };
+
 export default Rank;
