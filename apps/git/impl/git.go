@@ -282,7 +282,7 @@ func (g *Git) GetTotalCommitsByRepo(ctx context.Context, username string) (map[s
 		// 发起 HTTP GET 请求获取 HTML
 		resp, err := http.Get(url)
 		if err != nil {
-			return nil, fmt.Errorf("failed to fetch repo page for %s: %w", repo, err)
+			return nil, fmt.Errorf("failed to fetch repo pages for %s: %w", repo, err)
 		}
 		defer resp.Body.Close()
 
@@ -584,7 +584,7 @@ func GetDependentRepositorie(url string) (int, error) {
 
 	// 检查请求状态
 	if res.StatusCode != 200 {
-		return 0, fmt.Errorf("failed to fetch page: %d %s", res.StatusCode, res.Status)
+		return 0, fmt.Errorf("failed to fetch pages: %d %s", res.StatusCode, res.Status)
 	}
 
 	// 使用 goquery 加载 HTML 文档
