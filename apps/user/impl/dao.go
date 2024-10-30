@@ -8,7 +8,9 @@ import (
 	"log"
 	"sync"
 
+	"github.com/acd19ml/TalentRank/apps"
 	"github.com/acd19ml/TalentRank/apps/user"
+	_ "github.com/acd19ml/TalentRank/apps/user/llm"
 )
 
 func (u *ServiceImpl) save(ctx context.Context, ins *user.UserRepos) error {
@@ -107,7 +109,37 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 	totalReviewsByRepo, userReviewsByRepo := map[string]int{}, map[string]int{}
 
 	// 启动 goroutines 获取每个仓库信息
-	wg.Add(10)
+	wg.Add(11)
+
+	go func() {
+		defer wg.Done()
+		if userins.Location == "" {
+			if inputJSON, err := GetUserReposJSONWithRequest(ctx, userins); err == nil {
+
+				// 1. 调用doubao接口,输出json []byte
+				output, err := s.llm.ProcessChatCompletion(inputJSON)
+				if err != nil {
+					log.Fatalf("处理聊天补全错误: %v", err)
+				}
+				// 2. unmarshal json文件,获取possible_nation和confidence_level
+				data, err := s.rsp.UnmarshalToUserResponceByLLM(output)
+				if err != nil {
+					log.Fatalf("解析输入 JSON 错误: %v", err)
+				}
+				// 3. 更新userins的possible_nation和confidence_level
+				userins.PossibleNation = data.PossibleNation
+				userins.ConfidenceLevel = data.ConfidenceLevel
+
+			} else {
+				errCh <- fmt.Errorf("failed to guess nation by LLM: %w", err)
+			}
+
+		} else {
+			userins.PossibleNation = userins.Location
+			userins.ConfidenceLevel = "100"
+		}
+
+	}()
 
 	go func() {
 		defer wg.Done()
@@ -309,12 +341,12 @@ func (s *ServiceImpl) constructUser(ctx context.Context, username string) (*user
 		return nil, fmt.Errorf("failed to get user followers: %w", err)
 	}
 
-	readme, err := s.svc.GetReadme(ctx, username, 500)
+	readme, err := s.svc.GetReadme(ctx, username, apps.CharLimit, apps.RepoLimit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user readme: %w", err)
 	}
 
-	commits, err := s.svc.GetCommits(ctx, username, 1000)
+	commits, err := s.svc.GetCommits(ctx, username, apps.CharLimit, apps.RepoLimit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user commits: %w", err)
 	}
@@ -335,7 +367,7 @@ func (s *ServiceImpl) constructUser(ctx context.Context, username string) (*user
 		// Score、PossibleNation 和 ConfidenceLevel 需要根据特定逻辑或数据计算
 		Score:           0,
 		PossibleNation:  "",
-		ConfidenceLevel: 0,
+		ConfidenceLevel: "",
 	}
 
 	// 为新用户生成默认 ID
