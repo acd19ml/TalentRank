@@ -1,0 +1,57 @@
+[33m14bffcf[m[33m ([m[1;36mHEAD[m[33m)[m HEAD@{Wed Oct 30 01:04:03 2024}: checkout: moving from main to 14bffcf2e97145e45dfd5923a57ded91e024de67
+[33macab103[m[33m ([m[1;32mmain[m[33m)[m HEAD@{Tue Oct 29 23:10:17 2024}: commit: 清理
+[33m14bffcf[m[33m ([m[1;36mHEAD[m[33m)[m HEAD@{Tue Oct 29 23:07:44 2024}: rebase (finish): returning to refs/heads/main
+[33m14bffcf[m[33m ([m[1;36mHEAD[m[33m)[m HEAD@{Tue Oct 29 23:07:42 2024}: rebase (continue): 完成创建，调用豆包，插入置信度数据
+[33m3191c08[m HEAD@{Tue Oct 29 23:01:42 2024}: pull (start): checkout 3191c08bb4c0e4d5bbbef9e7bf762b4084bf8cf6
+[33m2e776d0[m HEAD@{Tue Oct 29 22:44:49 2024}: commit: 完成创建，调用豆包，插入置信度数据
+[33m16bb3d7[m HEAD@{Tue Oct 29 16:10:36 2024}: pull (finish): returning to refs/heads/main
+[33m16bb3d7[m HEAD@{Tue Oct 29 16:10:36 2024}: pull (pick): 添加输入username创建userrepos添加到数据库，添加返回json给llm接口，添加单元测试
+[33m2a79d41[m HEAD@{Tue Oct 29 16:10:36 2024}: pull (start): checkout 2a79d41f312983934bc0233c7b7d618486690fa1
+[33m55c0ba9[m HEAD@{Tue Oct 29 16:10:21 2024}: commit: 添加输入username创建userrepos添加到数据库，添加返回json给llm接口，添加单元测试
+[33m757c903[m HEAD@{Mon Oct 28 23:38:01 2024}: commit: 补充commit数量字段
+[33mf65a2af[m HEAD@{Mon Oct 28 23:03:04 2024}: commit: 重构系统架构，加入repo结构体，完成dao插入数据库事务，calculator暂不可用，需要完成数据库搭建后使用
+[33mbd64fc4[m HEAD@{Mon Oct 28 18:55:55 2024}: pull (finish): returning to refs/heads/main
+[33mbd64fc4[m HEAD@{Mon Oct 28 18:55:55 2024}: pull (pick): 优化get逻辑，并发处理计算总分，规范linechanges接口
+[33m19cbc79[m HEAD@{Mon Oct 28 18:55:55 2024}: pull (pick): rebasing
+[33mcec09e2[m HEAD@{Mon Oct 28 18:55:55 2024}: pull (start): checkout cec09e20f335efc01c17ede9ab432f3217c1c3d8
+[33m9854278[m HEAD@{Mon Oct 28 18:45:05 2024}: commit: 优化get逻辑，并发处理计算总分，规范linechanges接口
+[33m76791e1[m HEAD@{Mon Oct 28 14:25:49 2024}: pull (finish): returning to refs/heads/main
+[33m76791e1[m HEAD@{Mon Oct 28 14:25:49 2024}: pull (pick): rebasing
+[33maf41da2[m HEAD@{Mon Oct 28 14:25:49 2024}: pull (start): checkout af41da2e8a683b5d12ff93adc5f2f845ab29f81d
+[33m7c30ced[m HEAD@{Mon Oct 28 14:25:43 2024}: commit: rebasing
+[33m022c3a7[m HEAD@{Sun Oct 27 23:55:40 2024}: pull: Fast-forward
+[33m943ace7[m HEAD@{Sun Oct 27 21:37:14 2024}: commit: 添加计算贡献度以及个人完整得分
+[33m1c07537[m HEAD@{Sun Oct 27 20:04:08 2024}: pull (finish): returning to refs/heads/main
+[33m1c07537[m HEAD@{Sun Oct 27 20:04:08 2024}: pull (pick): fix bugs
+[33m0361409[m HEAD@{Sun Oct 27 20:04:08 2024}: pull (pick): GetDependentRepositoriesByRepo
+[33ma4e1208[m HEAD@{Sun Oct 27 20:04:08 2024}: pull (start): checkout a4e1208641348c7e9fdaae8f37532177c4a0e313
+[33m10f7b8a[m HEAD@{Sun Oct 27 20:04:01 2024}: commit: fix bugs
+[33m7a25bab[m HEAD@{Sun Oct 27 20:02:21 2024}: rebase (finish): returning to refs/heads/main
+[33m7a25bab[m HEAD@{Sun Oct 27 20:02:19 2024}: rebase (continue): GetDependentRepositoriesByRepo
+[33mcfbdc33[m HEAD@{Sun Oct 27 19:58:13 2024}: pull (start): checkout cfbdc332704e61ac68ac5cc9667d03d0d817d2a0
+[33mfd6e394[m HEAD@{Sun Oct 27 19:58:05 2024}: commit: GetDependentRepositoriesByRepo
+[33m93713fd[m HEAD@{Sun Oct 27 18:53:15 2024}: commit: get code review
+[33mbfde0c8[m HEAD@{Sun Oct 27 18:35:39 2024}: commit: interface
+[33me489adf[m HEAD@{Sun Oct 27 18:33:22 2024}: commit: Issue 数 + 合并的 PR 总数
+[33m0fb3d66[m HEAD@{Sun Oct 27 18:09:57 2024}: commit: interface
+[33meff3a20[m HEAD@{Sun Oct 27 18:07:59 2024}: commit: 修改命名格式
+[33m89eff53[m HEAD@{Sun Oct 27 18:03:19 2024}: rebase (finish): returning to refs/heads/main
+[33m89eff53[m HEAD@{Sun Oct 27 18:03:16 2024}: rebase (continue): add interface commit
+[33m1f75ccf[m HEAD@{Sun Oct 27 18:02:20 2024}: pull (pick): 获取代码Commit数
+[33m8349aa4[m HEAD@{Sun Oct 27 18:02:20 2024}: pull (start): checkout 8349aa4cdb10a18cffe4b62bdcf4e3feff08c167
+[33m56a1942[m HEAD@{Sun Oct 27 18:02:12 2024}: rebase (finish): returning to refs/heads/main
+[33m56a1942[m HEAD@{Sun Oct 27 18:02:12 2024}: rebase (finish): refs/heads/main onto 8349aa4cdb10a18cffe4b62bdcf4e3feff08c167
+[33m56a1942[m HEAD@{Sun Oct 27 18:01:38 2024}: checkout: moving from 6f9c544f140ea78e270ca74a8c1e1684d652fc3f to main
+[33m6f9c544[m HEAD@{Sun Oct 27 17:59:20 2024}: commit: solve rebase
+[33mf963a50[m HEAD@{Sun Oct 27 17:56:17 2024}: pull (pick): 获取代码Commit数
+[33m8349aa4[m HEAD@{Sun Oct 27 17:56:17 2024}: pull (start): checkout 8349aa4cdb10a18cffe4b62bdcf4e3feff08c167
+[33m56a1942[m HEAD@{Sun Oct 27 17:56:11 2024}: commit: add interface commit
+[33m97bc304[m HEAD@{Sun Oct 27 17:48:34 2024}: commit: 获取代码Commit数
+[33m216462c[m HEAD@{Sat Oct 26 23:40:47 2024}: commit: 构建mysql后端，待测试
+[33m81d5529[m HEAD@{Sat Oct 26 20:35:02 2024}: commit: 补充
+[33m5fbd46d[m HEAD@{Sat Oct 26 20:31:10 2024}: commit: 添加数据库结构体，添加环境变量
+[33m0125a5b[m HEAD@{Sat Oct 26 17:51:00 2024}: commit: 完成github api获取数据调用，以及单元测试集
+[33m810123a[m HEAD@{Sat Oct 26 15:09:09 2024}: commit: 添加新基于github包的接口与实现
+[33mfdcf583[m HEAD@{Fri Oct 25 14:56:55 2024}: commit: 获取特定username的followers，stars，forks数量
+[33mc185ed4[m HEAD@{Fri Oct 25 12:48:45 2024}: Branch: renamed refs/heads/main to refs/heads/main
+[33mc185ed4[m HEAD@{Fri Oct 25 12:48:45 2024}: commit (initial): first commit

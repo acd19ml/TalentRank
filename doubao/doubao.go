@@ -2,16 +2,35 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
 	"os"
+	"regexp"
 
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime"
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
 	"github.com/volcengine/volcengine-go-sdk/volcengine"
 )
 
+type InputData struct {
+	Model    string              `json:"model"`
+	Messages []map[string]string `json:"messages"`
+}
+
 func main() {
+	inputFile, err := os.Open("input.json")
+	if err != nil {
+		fmt.Printf("无法打开输入文件: %v\n", err)
+		return
+	}
+	defer inputFile.Close()
+
+	var inputData InputData
+	if err := json.NewDecoder(inputFile).Decode(&inputData); err != nil {
+		fmt.Printf("解析输入文件错误: %v\n", err)
+		return
+	}
+
 	client := arkruntime.NewClientWithApiKey(
 		os.Getenv("ARK_API_KEY"),
 		arkruntime.WithBaseUrl("https://ark.cn-beijing.volces.com/api/v3"),
@@ -20,69 +39,80 @@ func main() {
 
 	ctx := context.Background()
 
-	fmt.Println("----- standard request -----")
+	var messages []*model.ChatCompletionMessage
+	for _, msg := range inputData.Messages {
+		var roleEnum string
+		switch msg["role"] {
+		case "system":
+			roleEnum = model.ChatMessageRoleSystem
+		case "user":
+			roleEnum = model.ChatMessageRoleUser
+		case "assistant":
+			roleEnum = model.ChatMessageRoleAssistant
+		}
+
+		messages = append(messages, &model.ChatCompletionMessage{
+			Role: roleEnum,
+			Content: &model.ChatCompletionMessageContent{
+				StringValue: volcengine.String(msg["content"]),
+			},
+		})
+	}
+
 	req := model.ChatCompletionRequest{
-		Model: "ep-20241029234846-52tch",
-		Messages: []*model.ChatCompletionMessage{
-			{
-				Role: model.ChatMessageRoleSystem,
-				Content: &model.ChatCompletionMessageContent{
-					StringValue: volcengine.String("你是豆包，是由字节跳动开发的 AI 人工智能助手"),
-				},
-			},
-			{
-				Role: model.ChatMessageRoleUser,
-				Content: &model.ChatCompletionMessageContent{
-					StringValue: volcengine.String("常见的十字花科植物有哪些？"),
-				},
-			},
-		},
+		Model:    inputData.Model,
+		Messages: messages,
 	}
 
 	resp, err := client.CreateChatCompletion(ctx, req)
 	if err != nil {
-		fmt.Printf("standard chat error: %v\n", err)
+		fmt.Printf("请求错误: %v\n", err)
 		return
 	}
-	fmt.Println(*resp.Choices[0].Message.Content.StringValue)
 
-	fmt.Println("----- streaming request -----")
-	req = model.ChatCompletionRequest{
-		Model: "ep-20241029234846-52tch",
-		Messages: []*model.ChatCompletionMessage{
-			{
-				Role: model.ChatMessageRoleSystem,
-				Content: &model.ChatCompletionMessageContent{
-					StringValue: volcengine.String("你是豆包，是由字节跳动开发的 AI 人工智能助手"),
-				},
-			},
-			{
-				Role: model.ChatMessageRoleUser,
-				Content: &model.ChatCompletionMessageContent{
-					StringValue: volcengine.String("常见的十字花科植物有哪些？"),
-				},
-			},
-		},
+	var nationality, confidenceLevel string
+	if len(resp.Choices) > 0 && resp.Choices[0].Message.Content != nil {
+		content := *resp.Choices[0].Message.Content.StringValue
+		print(content)
+		// 使用正则表达式提取中文字段“国籍”和“信心等级”
+		// nationalityRegex := regexp.MustCompile(`"possible nation":\s*"([^"]+)"`)
+		// confidenceRegex := regexp.MustCompile(`"confidence level":\s*([0-9.]+)`)
+		// nationalityRegex := regexp.MustCompile(`"国籍":\s*"([^"]+)"`)
+		// confidenceRegex := regexp.MustCompile(`"置信度":\s*([0-9.]+)`)
+		// nationalityRegex := regexp.MustCompile(`([\p{Han}]+)`) // 匹配中国、美国等中文国籍
+		// confidenceRegex := regexp.MustCompile(`([0-9]+)%`)     // 匹配百分比置信度
+		nationalityRegex := regexp.MustCompile(`([A-Za-z]+)`) // 匹配英文国籍，例如 China、United States
+		confidenceRegex := regexp.MustCompile(`([0-9]+)%`)    // 匹配百分比置信度，例如 80%
+
+		nationalityMatch := nationalityRegex.FindStringSubmatch(content)
+		confidenceMatch := confidenceRegex.FindStringSubmatch(content)
+
+		if len(nationalityMatch) > 1 {
+			nationality = nationalityMatch[1]
+		}
+		if len(confidenceMatch) > 1 {
+			confidenceLevel = confidenceMatch[1]
+		}
 	}
-	stream, err := client.CreateChatCompletionStream(ctx, req)
+
+	output := map[string]interface{}{
+		"possible_nation":  nationality,
+		"confidence_level": confidenceLevel,
+	}
+
+	outputFile, err := os.Create("output.json")
 	if err != nil {
-		fmt.Printf("stream chat error: %v\n", err)
+		fmt.Printf("无法创建输出文件: %v\n", err)
 		return
 	}
-	defer stream.Close()
+	defer outputFile.Close()
 
-	for {
-		recv, err := stream.Recv()
-		if err == io.EOF {
-			return
-		}
-		if err != nil {
-			fmt.Printf("Stream chat error: %v\n", err)
-			return
-		}
-
-		if len(recv.Choices) > 0 {
-			fmt.Print(recv.Choices[0].Delta.Content)
-		}
+	encoder := json.NewEncoder(outputFile)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(output); err != nil {
+		fmt.Printf("写入输出文件错误: %v\n", err)
+		return
 	}
+
+	fmt.Println("简化响应已保存到 output.json")
 }
