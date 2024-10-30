@@ -1,80 +1,60 @@
-import React from 'react';
-import './App.css'; // 引入样式文件
+import React, { useState } from 'react';
+import {
+  AppstoreOutlined,
+  BarChartOutlined,
+  CloudOutlined,
+  ShopOutlined,
+  TeamOutlined,
+  UploadOutlined,
+  UserOutlined,
+  VideoCameraOutlined,
+} from '@ant-design/icons';
+import { Layout, Menu, theme } from 'antd';
+import Rank from './pages/rank'; // 导入 Rank 组件
+import Search from './pages/search'; // 假设你还有这个组件
 
-class App extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      title: 'TalentRank',
-      width: 200,
-      collapsed: false,
-      currentPage: <div>欢迎使用小团体的TalentRank!</div>,
-      menus: [
-        {
-          text: "Forms",
-          iconCls: "fa fa-wpforms",
-          children: [
-            { text: "Form Element", page: <div>Form Element Content</div> },
-            { text: "Wizard", page: <div>Wizard Content</div> },
-            { text: "File Upload", page: <div>File Upload Content</div> }
-          ]
-        },
-        {
-          text: "Mail",
-          iconCls: "fa fa-at",
-          children: [
-            { text: "Inbox", page: <div>Inbox Content</div> },
-            { text: "Sent", page: <div>Sent Content</div> },
-            { text: "Trash", page: <div>Trash Content</div> }
-          ]
-        },
-        {
-          text: "Layout",
-          iconCls: "fa fa-table",
-          children: [
-            { text: "Panel", page: <div>Panel Content</div> },
-            { text: "Accordion", page: <div>Accordion Content</div> },
-            { text: "Tabs", page: <div>Tabs Content</div> }
-          ]
-        }
-      ]
-    };
-  }
+const { Header, Content, Footer, Sider } = Layout;
 
-  toggle() {
-    const { collapsed } = this.state;
-    this.setState({
-      collapsed: !collapsed,
-      width: collapsed ? 200 : 50
-    });
-  }
+const items = [
+  { key: '1', icon: <UserOutlined />, label: 'Rank' },
+  { key: '2', icon: <VideoCameraOutlined />, label: 'Search' },
+  // 可以继续添加其他菜单项
+];
 
-  handleItemClick(item) {
-    this.setState({ currentPage: item.page });
-  }
+const App = () => {
+  const [headerComponent, setHeaderComponent] = useState(<Rank />); // 默认显示 Rank 组件
 
-  render() {
-    const { menus, title, width, collapsed, currentPage } = this.state;
+  const {
+    token: { colorBgContainer, borderRadiusLG },
+  } = theme.useToken();
 
-    return (
-        <div style={{ display: 'flex', height: '100vh' }}>
-          <div className="sidebar-body" style={{ width: width, backgroundColor: 'rgb(51, 51, 51)', color: '#fff' }}>
-            <div className="sidebar-header" style={{ padding: '10px', textAlign: 'center' }}>
-              <h3>{title}</h3>
+  const handleMenuClick = ({ key }) => {
+    if (key === '1') {
+      setHeaderComponent(<Rank />);
+    } else if (key === '2') {
+      setHeaderComponent(<Search />);
+    }
+  };
+
+  return (
+      <Layout hasSider>
+        <Sider style={{ overflow: 'auto', height: '100vh', position: 'fixed', insetInlineStart: 0, top: 0, bottom: 0, scrollbarWidth: 'thin', scrollbarGutter: 'stable' }}>
+          <div className="demo-logo-vertical" />
+          <Menu theme="dark" mode="inline" defaultSelectedKeys={['1']} onClick={handleMenuClick} items={items} />
+        </Sider>
+        <Layout style={{ marginInlineStart: 200 }}>
+          <Header style={{ padding: 0, background: colorBgContainer }} />
+          <Content style={{ margin: '24px 16px 0', overflow: 'initial' }}>
+            <div style={{ padding: 24, textAlign: 'center', background: colorBgContainer, borderRadius: borderRadiusLG }}>
+              {headerComponent} {/* 动态渲染的头部组件 */}
             </div>
-          </div>
-          <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-            <div className="main-header" style={{ backgroundColor: '#f8f9fa', padding: '10px', display: 'flex', alignItems: 'center' }}>
-              <span className="main-toggle fa fa-bars" onClick={this.toggle.bind(this)} style={{ cursor: 'pointer' }}></span>
-              <h2 style={{ marginLeft: '10px' }}>{title}</h2>
-            </div>
-            <div className="main-body" style={{ padding: '20px', flexGrow: 1, backgroundColor: '#f0f0f0' }}>
-              {currentPage}
-            </div>
-          </div>
-        </div>
-    );
-  }
-}
+          </Content>
+          <Footer style={{ textAlign: 'center' }}>
+            Ant Design ©{new Date().getFullYear()} Created by Ant UED
+          </Footer>
+        </Layout>
+      </Layout>
+  );
+};
 
 export default App;
