@@ -2,38 +2,61 @@ import React, { useState } from 'react';
 import {
   UserOutlined,
   VideoCameraOutlined,
+  MailOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, theme } from 'antd';
-import Rank from './pages/rank'; // 导入 Rank 组件
-import Search from './pages/search'; // 假设你还有这个组件
+import Rank from './pages/rank';
+import Search from './pages/search';
+import Echart1 from './pages/echart1';
+import Echart2 from './pages/echart2';
+import Echart3 from './pages/echart3';// 导入 Echart1 组件
 
 const { Header, Content, Footer, Sider } = Layout;
 
-// 定义菜单项及对应的组件
 const menuItems = {
-  '1': { icon: <UserOutlined />, label: 'Rank', component: <Rank /> ,text:'贡献分数排名' },
-  '2': { icon: <VideoCameraOutlined />, label: 'Search', component: <Search /> ,text:'搜索' },
-  // 继续添加其他菜单项
+  '1': { icon: <UserOutlined />, label: 'Rank', component: <Rank />, text: '贡献分数排名' },
+  '2': { icon: <VideoCameraOutlined />, label: 'Search', component: <Search />, text: '搜索' },
+  '3': {
+    icon: <MailOutlined />,
+    label: 'echarts',
+    children: [
+      { key: '31', label: '地区图', component: <Echart1 />, text: 'user地区饼状图' }, // 更新为 Echart1 组件
+      { key: '32', label: 'Option 2', component: <Echart2 />, text: '选项 2' },
+      { key: '33', label: 'Option 3', component: <Echart3 />, text: '选项 3' },
+    ],
+  },
 };
 
 const items = Object.keys(menuItems).map(key => ({
   key,
   icon: menuItems[key].icon,
   label: menuItems[key].label,
+  children: menuItems[key].children ? menuItems[key].children.map(child => ({
+    key: child.key,
+    label: child.label,
+  })) : null,
 }));
 
 const App = () => {
-  const [headerComponent, setHeaderComponent] = useState(menuItems['1'].component); // 默认显示 Rank 组件
-  const [headerLabel, setHeaderLabel] = useState(menuItems['1'].text); // 默认显示的标签
+  const [headerComponent, setHeaderComponent] = useState(menuItems['1'].component);
+  const [headerLabel, setHeaderLabel] = useState(menuItems['1'].text);
 
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
   const handleMenuClick = ({ key }) => {
-    // 更新组件和标签
-    setHeaderComponent(menuItems[key].component);
-    setHeaderLabel(menuItems[key].text);
+    const item = Object.values(menuItems).flatMap(menuItem =>
+        menuItem.children ? menuItem.children.find(child => child.key === key) : null
+    ).find(Boolean);
+
+    if (item) {
+      setHeaderComponent(item.component);
+      setHeaderLabel(item.text);
+    } else {
+      setHeaderComponent(menuItems[key]?.component || null);
+      setHeaderLabel(menuItems[key]?.text || '');
+    }
   };
 
   return (
@@ -44,11 +67,11 @@ const App = () => {
         </Sider>
         <Layout style={{ marginInlineStart: 200 }}>
           <Header style={{ padding: 0, background: colorBgContainer }}>
-            <h2 style={{ margin: 0, padding: '0 24px' }}>{headerLabel}</h2> {/* 显示当前标签 */}
+            <h2 style={{ margin: 0, padding: '0 24px' }}>{headerLabel}</h2>
           </Header>
           <Content style={{ margin: '24px 16px 0', overflow: 'initial' }}>
             <div style={{ padding: 24, textAlign: 'center', background: colorBgContainer, borderRadius: borderRadiusLG }}>
-              {headerComponent} {/* 动态渲染的头部组件 */}
+              {headerComponent}
             </div>
           </Content>
           <Footer style={{ textAlign: 'center' }}>
