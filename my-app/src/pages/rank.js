@@ -17,6 +17,13 @@ const columns = [
     {
         title: 'Location',
         dataIndex: 'location',
+        filters: [
+            { text: 'China', value: 'China' },
+            { text: 'USA', value: 'USA' },
+            // { text: 'Location C', value: 'Location C' },
+            // 可以根据你的数据添加更多位置
+        ],
+        onFilter: (value, record) => record.location.includes(value), // 筛选逻辑
         width: '30%',
     },
     {
