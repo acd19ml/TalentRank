@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
@@ -33,6 +34,19 @@ type Ranking struct {
 type LocationCount struct {
 	Location string `json:"location"`
 	Count    int    `json:"count"`
+}
+
+type UserData struct {
+	Name     string `json:"name"`
+	Children []Repo `json:"children"`
+}
+
+type Repo struct {
+	Name     string `json:"name"`
+	Children []struct {
+		Name  string `json:"name"`
+		Value int    `json:"value"`
+	} `json:"children"`
 }
 
 // 从 XML 文件中读取数据库配置
@@ -125,6 +139,39 @@ func main() {
 		}
 
 		c.JSON(http.StatusOK, locationCounts)
+	})
+
+	r.POST("/api/getUserData", func(c *gin.Context) {
+		var requestBody struct {
+			Username string `json:"username"`
+		}
+
+		if err := c.ShouldBindJSON(&requestBody); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+			return
+		}
+
+		var userData []byte
+		_, err := db.Exec("CALL GetUserData(?, @user_data)", requestBody.Username)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to call stored procedure"})
+			return
+		}
+
+		// 获取输出参数
+		err = db.QueryRow("SELECT @user_data").Scan(&userData)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user data"})
+			return
+		}
+
+		var result interface{}
+		if err := json.Unmarshal(userData, &result); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse JSON"})
+			return
+		}
+
+		c.JSON(http.StatusOK, result)
 	})
 
 	r.Run(":8080") // 在8080端口启动

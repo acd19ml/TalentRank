@@ -21,7 +21,7 @@ const menuItems = {
     label: 'echarts',
     children: [
       { key: '31', label: '地区图', component: <Echart1 />, text: 'user地区饼状图' }, // 更新为 Echart1 组件
-      { key: '32', label: 'Option 2', component: <Echart2 />, text: '选项 2' },
+      { key: '32', label: 'user数据', component: <Echart2 />, text: 'user数据树状图' },
       { key: '33', label: 'Option 3', component: <Echart3 />, text: '选项 3' },
     ],
   },
