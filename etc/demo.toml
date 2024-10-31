@@ -6,8 +6,8 @@ key  = "this is your app key"
 
 
 [mysql]
-host = "127.0.0.1"
+host = "111.229.114.251"
 port = "3306"
-username = "root"
-password = "Lmx20020420"
-database = "TalentRank"
+username = "mydb"
+password = "12345678"
+database = "mydb"
