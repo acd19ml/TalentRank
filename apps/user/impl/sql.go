@@ -2,25 +2,47 @@ package impl
 
 const (
 	InsertUserSQL = `
-	INSERT INTO User (
-		id, username, name, company, blog, location, 
-		email, bio, followers, organizations, readme, 
-		commits, score, possible_nation, confidence_level
-	) VALUES (
-		?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-	);
+		INSERT INTO User (
+			id, username, name, company, blog, location, 
+			email, bio, followers, organizations, readme, 
+			commits, score, possible_nation, confidence_level
+		) VALUES (
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+		);
 
 	`
 
 	InsertRepoSQL = `
-	INSERT INTO Repo (
-		id, user_id, repo, star, fork, dependent, commits, commits_total,
-		issue, issue_total, pull_request, pull_request_total, 
-		code_review, code_review_total, line_change, line_change_total
-	) VALUES (
-	 	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-	);
+		INSERT INTO Repo (
+			id, user_id, repo, star, fork, dependent, commits, commits_total,
+			issue, issue_total, pull_request, pull_request_total, 
+			code_review, code_review_total, line_change, line_change_total
+		) VALUES (
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+		);
 
+	`
+
+	Userquery = `
+		SELECT id, username, name, company, blog, location, email, bio, 
+			   followers, organizations, score, possible_nation, confidence_level
+		FROM User
+		LIMIT ? OFFSET ?;
+	`
+
+	QueryUser = `
+		SELECT id, username, name, company, blog, location, email, bio, 
+			   followers, organizations, score, possible_nation, confidence_level
+		FROM User
+		WHERE username = ?;
+	`
+
+	QueryRepos = `
+		SELECT id, user_id, repo, star, fork, dependent, commits, commits_total, 
+			   issue, issue_total, pull_request, pull_request_total, 
+			   code_review, code_review_total, line_change, line_change_total
+		FROM Repo
+		WHERE user_id = ?;
 	`
 )
 

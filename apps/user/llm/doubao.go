@@ -18,6 +18,16 @@ type InputData struct {
 	Messages []map[string]string `json:"messages"`
 }
 
+func NewChatService() *ChatService {
+	return &ChatService{
+		client: arkruntime.NewClientWithApiKey(
+			os.Getenv("ARK_API_KEY"),
+			arkruntime.WithBaseUrl("https://ark.cn-beijing.volces.com/api/v3"),
+			arkruntime.WithRegion("cn-beijing"),
+		),
+	}
+}
+
 // ChatService 封装了 Volcengine 客户端
 type ChatService struct {
 	client *arkruntime.Client
@@ -90,8 +100,8 @@ func (cs *ChatService) ProcessChatCompletion(inputJSON []byte) ([]byte, error) {
 	var nationality, confidenceLevel string
 	if len(resp.Choices) > 0 && resp.Choices[0].Message.Content != nil {
 		content := *resp.Choices[0].Message.Content.StringValue
-		nationalityRegex := regexp.MustCompile(`([A-Za-z]+)`) // 匹配英文国籍，例如 China、United States
-		confidenceRegex := regexp.MustCompile(`([0-9]+)%`)    // 匹配百分比置信度，例如 80%
+		nationalityRegex := regexp.MustCompile(`\"possible_nation\"\s*:\s*\"([^\"]*)\"`) // 匹配英文国籍，例如 China、United States
+		confidenceRegex := regexp.MustCompile(`\"confidence_level\"\s*:\s*(\d+)`)        // 匹配百分比置信度，例如 80%
 
 		nationalityMatch := nationalityRegex.FindStringSubmatch(content)
 		confidenceMatch := confidenceRegex.FindStringSubmatch(content)

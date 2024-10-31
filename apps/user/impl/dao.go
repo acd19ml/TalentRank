@@ -86,16 +86,40 @@ func (u *ServiceImpl) save(ctx context.Context, ins *user.UserRepos) error {
 	return nil
 }
 
+func defaultRepoData(data map[string]int, keys ...string) {
+	for _, key := range keys {
+		if _, ok := data[key]; !ok {
+			data[key] = 0
+		}
+	}
+}
+
 // constructUserRepos 创建用户及其仓库信息，开启多个 goroutine 并发获取数据
 func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (*user.UserRepos, error) {
 	if username == "" {
 		return nil, errors.New("username cannot be empty")
 	}
 
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered from panic in constructUserRepos: %v", r)
+		}
+	}()
+
 	// 创建User实例
 	userins, err := s.constructUser(ctx, username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+	if userins == nil {
+		return nil, errors.New("constructUser returned nil for userins")
+	}
+	// 检查关键字段是否已初始化
+	if userins.Username == "" {
+		return nil, errors.New("username is empty in userins")
+	}
+	if userins.Location == "" {
+		log.Println("Warning: user location is empty; this may affect downstream processing.")
 	}
 
 	var wg sync.WaitGroup
@@ -113,32 +137,70 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	go func() {
 		defer wg.Done()
+
+		// 检查 userins 是否为空
+		if userins == nil || userins.Username == "" {
+			errCh <- errors.New("userins or username is nil/empty in constructUserRepos")
+			return
+		}
+
 		if userins.Location == "" {
-			if inputJSON, err := GetUserReposJSONWithRequest(ctx, userins); err == nil {
+			log.Println("Warning: userins.Location is empty in constructUserRepos")
 
-				// 1. 调用doubao接口,输出json []byte
-				output, err := s.llm.ProcessChatCompletion(inputJSON)
-				if err != nil {
-					log.Fatalf("处理聊天补全错误: %v", err)
-				}
-				// 2. unmarshal json文件,获取possible_nation和confidence_level
-				data, err := s.rsp.UnmarshalToUserResponceByLLM(output)
-				if err != nil {
-					log.Fatalf("解析输入 JSON 错误: %v", err)
-				}
-				// 3. 更新userins的possible_nation和confidence_level
-				userins.PossibleNation = data.PossibleNation
-				userins.ConfidenceLevel = data.ConfidenceLevel
-
-			} else {
-				errCh <- fmt.Errorf("failed to guess nation by LLM: %w", err)
+			// 检查 s.llm 是否已初始化
+			if s.llm == nil {
+				errCh <- errors.New("s.llm is nil, ensure it is initialized before calling constructUserRepos")
+				return
 			}
+
+			inputJSON, err := GetUserReposJSONWithRequest(ctx, userins)
+			if err != nil {
+				errCh <- fmt.Errorf("failed to create JSON request: %w", err)
+				return
+			}
+
+			if inputJSON == nil {
+				errCh <- errors.New("inputJSON is nil in constructUserRepos")
+				return
+			}
+
+			output, err := s.llm.ProcessChatCompletion(inputJSON)
+			if err != nil {
+				errCh <- fmt.Errorf("failed to process chat completion: %w", err)
+				return
+			}
+
+			if output == nil {
+				errCh <- errors.New("output is nil in constructUserRepos")
+				return
+			}
+
+			// 检查 s.rsp 是否已初始化
+			if s.rsp == nil {
+				errCh <- errors.New("s.rsp is nil, ensure it is initialized before calling constructUserRepos")
+				return
+			}
+
+			data, err := s.rsp.UnmarshalToUserResponceByLLM(output)
+			if err != nil {
+				errCh <- fmt.Errorf("failed to unmarshal response JSON: %w", err)
+				return
+			}
+
+			// 检查 data 中的关键字段
+			if data.PossibleNation == "" || data.ConfidenceLevel == "" {
+				log.Printf("Warning: LLM returned empty nation or confidence level: %+v", data)
+				errCh <- errors.New("received empty possible_nation or confidence_level")
+				return
+			}
+
+			userins.PossibleNation = data.PossibleNation
+			userins.ConfidenceLevel = data.ConfidenceLevel
 
 		} else {
 			userins.PossibleNation = userins.Location
 			userins.ConfidenceLevel = "100"
 		}
-
 	}()
 
 	go func() {
@@ -258,6 +320,7 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 	// 检查是否有错误
 	for e := range errCh {
 		if e != nil {
+			log.Printf("Error occurred during repository construction: %v", e)
 			return nil, e
 		}
 	}
@@ -265,6 +328,22 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 	// 构建Repo列表
 	var repos []*user.Repo
 	for repoName := range starsByRepo {
+		// 避免 totalCommitsByRepo 不存在或长度不够的情况
+		if len(totalCommitsByRepo[repoName]) < 4 {
+			log.Printf("Warning: Skipping repo %s due to insufficient data in totalCommitsByRepo", repoName)
+			totalCommitsByRepo[repoName] = []int{0, 0, 0, 0} // 使用默认值补全
+		}
+
+		// 使用 defaultRepoData 保证每个数据项都有值
+		defaultRepoData(starsByRepo, repoName)
+		defaultRepoData(forksByRepo, repoName)
+		defaultRepoData(dependentsByRepo, repoName)
+		defaultRepoData(totalIssuesByRepo, repoName)
+		defaultRepoData(userIssuesByRepo, repoName)
+		defaultRepoData(totalPRsByRepo, repoName)
+		defaultRepoData(userPRsByRepo, repoName)
+		defaultRepoData(totalReviewsByRepo, repoName)
+		defaultRepoData(userReviewsByRepo, repoName)
 		repo := &user.Repo{
 			User_id:          userins.Id,
 			Repo:             repoName,

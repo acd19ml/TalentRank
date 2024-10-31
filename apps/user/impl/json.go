@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/acd19ml/TalentRank/apps/user"
@@ -21,6 +22,9 @@ type Request struct {
 
 // GetUserReposJSONWithRequest 构造请求数据并返回 JSON
 func GetUserReposJSONWithRequest(ctx context.Context, user *user.User) ([]byte, error) {
+	if user == nil {
+		return nil, errors.New("userins is nil in GetUserReposJSONWithRequest")
+	}
 	// 调用 GetUserReposJSON 以获取用户仓库数据的 JSON 字符串
 	userJSON, err := json.Marshal(user)
 	if err != nil {
@@ -33,11 +37,11 @@ func GetUserReposJSONWithRequest(ctx context.Context, user *user.User) ([]byte, 
 		Messages: []Message{
 			{
 				Role:    "system",
-				Content: "你是豆包，是由字节跳动开发的 AI 人工智能助手",
+				Content: "You are Doubao, an AI assistant developed by ByteDance.",
 			},
 			{
 				Role:    "user",
-				Content: "Here is the information of GitHub user. Based on this information, you must infer their nation and provide a confidence level, and only respond with the nation and confidence level, the confidence level should be number in percent" + string(userJSON),
+				Content: "Based on the provided JSON information of a GitHub user (id, username, name, company, blog, location, email, bio, followers, organizations, readme, commits, and score), if the location field is empty, analyze and infer the user’s possible nation (location) based on the other available fields. Only respond with a JSON object in the following format: \n\n```\n{\n  \"possible_nation\": \"<country or 'N/A'>\",\n  \"confidence_level\": <percentage as a number>\n}\n```\n\nIf the information is insufficient to determine the user's nation, set \"possible_nation\" to \"N/A\" and \"confidence_level\" to 0." + string(userJSON),
 			},
 		},
 	}

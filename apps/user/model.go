@@ -2,6 +2,7 @@ package user
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -22,6 +23,14 @@ func NewUserReposSet() *UserReposSet {
 type UserReposSet struct {
 	Total      int          `json:"total"`
 	Developers []*UserRepos `json:"developers"`
+}
+
+func (s UserReposSet) Add(developers *UserRepos) {
+	s.Developers = append(s.Developers, developers)
+}
+
+func (s UserRepos) AddRepos(repo *Repo) {
+	s.Repos = append(s.Repos, repo)
 }
 
 func NewUserRepos() *UserRepos {
@@ -45,6 +54,24 @@ func (u *User) InjectDefault() {
 	if u.Id == "" {
 		u.Id = uuid.New().String()
 	}
+}
+
+func NewUserSet() *UserSet {
+	return &UserSet{
+		Users: []*User{},
+	}
+}
+func (s *UserSet) Add(user *User) {
+	s.Users = append(s.Users, user)
+}
+
+type UserSet struct {
+	Total int     `json:"total"`
+	Users []*User `json:"users"`
+}
+
+func NewUser() *User {
+	return &User{}
 }
 
 type User struct {
@@ -76,17 +103,31 @@ func (r *Repo) InjectDefault() {
 	}
 }
 
+func NewUserResponseByLLM() *UserResponceByLLM {
+	return &UserResponceByLLM{}
+}
+
 type UserResponceByLLM struct {
 	PossibleNation  string `json:"possible_nation"`
 	ConfidenceLevel string `json:"confidence_level"`
 }
 
 func (r *UserResponceByLLM) UnmarshalToUserResponceByLLM(data []byte) (*UserResponceByLLM, error) {
-	return r, json.Unmarshal(data, r)
+	err := json.Unmarshal(data, r)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	if r.PossibleNation == "" {
+		r.PossibleNation = "N/A"
+	}
+	if r.ConfidenceLevel == "" {
+		r.ConfidenceLevel = "0"
+	}
+	return r, nil
 }
 
-type LLMResponceService interface {
-	UnmarshalToUserResponceByLLM(data []byte) (*UserResponceByLLM, error)
+func NewRepo() *Repo {
+	return &Repo{}
 }
 
 type Repo struct {
@@ -108,8 +149,16 @@ type Repo struct {
 	LineChangeTotal  int    `json:"line_change_total"`
 }
 
-func NewQueryUserReposFromHTTP(r *http.Request) *QueryUserReposRequest {
-	req := NewQueryUserReposRequest()
+func NewCreateUserReposRequest() *CreateUserReposRequest {
+	return &CreateUserReposRequest{}
+}
+
+type CreateUserReposRequest struct {
+	Username string `json:"username"`
+}
+
+func NewQueryUserFromHTTP(r *http.Request) *QueryUserRequest {
+	req := NewQueryUserRequest()
 	// query string
 	qs := r.URL.Query()
 	pss := qs.Get("page_size")
@@ -122,27 +171,41 @@ func NewQueryUserReposFromHTTP(r *http.Request) *QueryUserReposRequest {
 		req.PageNumber, _ = strconv.Atoi(pns)
 	}
 
-	req.Keywords = qs.Get("kws")
+	req.Location = qs.Get("location")
 	return req
 }
 
-func NewQueryUserReposRequest() *QueryUserReposRequest {
-	return &QueryUserReposRequest{
+func NewQueryUserRequest() *QueryUserRequest {
+	return &QueryUserRequest{
 		PageSize:   20,
 		PageNumber: 1,
 	}
 }
 
-type QueryUserReposRequest struct {
+type QueryUserRequest struct {
 	PageSize   int    `json:"page_size"`
 	PageNumber int    `json:"page_number"`
-	Keywords   string `json:"kws"`
+	Location   string `json:"location"`
 }
 
-func (q *QueryUserReposRequest) OffSet() int64 {
+func (q *QueryUserRequest) OffSet() int64 {
 	return int64((q.PageNumber - 1) * q.PageSize)
 }
 
-func (q *QueryUserReposRequest) GetPageSize() uint {
+func (q *QueryUserRequest) GetPageSize() uint {
 	return uint(q.PageSize)
+}
+
+func NewDescribeUserReposRequestFromHTTP(r *http.Request) *DescribeUserReposRequest {
+	req := NewDescribeUserReposRequest()
+	req.Username = r.URL.Query().Get("username")
+	return req
+}
+
+func NewDescribeUserReposRequest() *DescribeUserReposRequest {
+	return &DescribeUserReposRequest{}
+}
+
+type DescribeUserReposRequest struct {
+	Username string `json:"username"`
 }

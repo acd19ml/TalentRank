@@ -33,7 +33,11 @@ func (g *Git) GetCompany(ctx context.Context, username string) (string, error) {
 func (g *Git) GetLocation(ctx context.Context, username string) (string, error) {
 	user, err := g.GetUser(ctx, username)
 	if err != nil {
-		panic(err)
+		return "", fmt.Errorf("failed to get user: %w", err)
+	}
+	location := user.GetLocation()
+	if location == "" {
+		log.Printf("warning: location for user %s is empty", username)
 	}
 	return user.GetLocation(), nil
 }

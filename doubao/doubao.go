@@ -22,7 +22,7 @@ func main() {
 
 	fmt.Println("----- standard request -----")
 	req := model.ChatCompletionRequest{
-		Model: "ep-20241029234846-52tch",
+		Model: "ep-20241029222143-j4r4t",
 		Messages: []*model.ChatCompletionMessage{
 			{
 				Role: model.ChatMessageRoleSystem,
@@ -48,7 +48,7 @@ func main() {
 
 	fmt.Println("----- streaming request -----")
 	req = model.ChatCompletionRequest{
-		Model: "ep-20241029234846-52tch",
+		Model: "ep-20241029222143-j4r4t",
 		Messages: []*model.ChatCompletionMessage{
 			{
 				Role: model.ChatMessageRoleSystem,

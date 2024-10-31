@@ -8,6 +8,8 @@ import (
 	"github.com/acd19ml/TalentRank/apps"
 	"github.com/acd19ml/TalentRank/apps/user"
 	"github.com/acd19ml/TalentRank/apps/user/impl"
+	"github.com/acd19ml/TalentRank/apps/user/llm"
+	_ "github.com/acd19ml/TalentRank/apps/user/llm"
 	"github.com/acd19ml/TalentRank/conf"
 )
 
@@ -28,6 +30,11 @@ func init() {
 	err := conf.LoadConfigFromToml("../../../etc/demo.toml")
 	if err != nil {
 		panic(err)
+	}
+
+	err = llm.Init()
+	if err != nil {
+		panic("Failed to initialize ChatService")
 	}
 
 	client = impl.NewUserServiceImpl() // 初始化客户端
