@@ -55,13 +55,14 @@ const Echart2 = () => {
                     bottom: '1%',
                     right: '20%',
                     symbolSize: 7,
+                    initialTreeDepth: 3, // 设置初始展开深度
                     label: {
                         position: 'left',
                         verticalAlign: 'middle',
                         align: 'right',
-                        fontSize: 14, // 增大字体
+                        fontSize: 14,
                         formatter: (params) => {
-                            const maxLength = 10; // 设置最大字符长度
+                            const maxLength = 10;
                             return params.name.length > maxLength ? params.name.slice(0, maxLength) + '...' : params.name;
                         }
                     },
@@ -70,9 +71,9 @@ const Echart2 = () => {
                             position: 'right',
                             verticalAlign: 'middle',
                             align: 'left',
-                            fontSize: 14, // 增大字体
+                            fontSize: 14,
                             formatter: (params) => {
-                                const maxLength = 10; // 设置最大字符长度
+                                const maxLength = 10;
                                 return params.name.length > maxLength ? params.name.slice(0, maxLength) + '...' : params.name;
                             }
                         }
@@ -80,7 +81,7 @@ const Echart2 = () => {
                     emphasis: {
                         focus: 'descendant'
                     },
-                    expandAndCollapse: true,
+                    expandAndCollapse: true, // 允许手动展开和收缩
                     animationDuration: 550,
                     animationDurationUpdate: 750
                 }
