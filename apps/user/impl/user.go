@@ -107,6 +107,7 @@ func (s *ServiceImpl) QueryUsers(ctx context.Context, req *user.QueryUserRequest
 func (s *ServiceImpl) DescribeUserRepos(ctx context.Context, req *user.DescribeUserReposRequest) (*user.UserRepos, error) {
 	// 初始化返回结果
 	userRepos := user.NewUserRepos()
+	var orgs string // 用于接收 organizations 字段的 JSON 数据
 
 	// 准备并执行用户查询
 	err := s.db.QueryRowContext(ctx, QueryUser, req.Username).Scan(
@@ -119,7 +120,7 @@ func (s *ServiceImpl) DescribeUserRepos(ctx context.Context, req *user.DescribeU
 		&userRepos.User.Email,
 		&userRepos.User.Bio,
 		&userRepos.User.Followers,
-		new(string), // 临时变量存储 organizations
+		&orgs, // 临时变量存储 organizations
 		&userRepos.User.Score,
 		&userRepos.User.PossibleNation,
 		&userRepos.User.ConfidenceLevel,
@@ -131,10 +132,14 @@ func (s *ServiceImpl) DescribeUserRepos(ctx context.Context, req *user.DescribeU
 		return nil, fmt.Errorf("failed to query user: %w", err)
 	}
 
-	// 解析 organizations 字段
-	var orgs string
-	if err := json.Unmarshal([]byte(orgs), &userRepos.User.Organizations); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal organizations for user %s: %w", userRepos.User.Id, err)
+	// 检查 organizations 字段是否为空，然后再执行 JSON 解析
+	if orgs != "" {
+		if err := json.Unmarshal([]byte(orgs), &userRepos.User.Organizations); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal organizations for user %s: %w", userRepos.User.Id, err)
+		}
+	} else {
+		// 如果 orgs 为空，初始化为空数组，避免后续使用中的 nil 引发问题
+		userRepos.User.Organizations = []string{}
 	}
 
 	// 准备 Repo 查询语句
