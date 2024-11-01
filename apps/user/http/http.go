@@ -3,6 +3,7 @@ package http
 import (
 	"github.com/acd19ml/TalentRank/apps"
 	"github.com/acd19ml/TalentRank/apps/user"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,6 +14,14 @@ type Handler struct {
 var handler = &Handler{}
 
 func (h *Handler) Registry(r gin.IRouter) {
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"},                   // 允许的源
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},            // 允许的方法
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"}, // 允许的头
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
+
 	r.POST("/userRepos", h.CreateUserRepos)
 	r.GET("/user", h.QueryUsers)
 	r.GET("/userRepos", h.DescribeUserRepos)

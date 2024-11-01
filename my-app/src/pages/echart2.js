@@ -9,17 +9,16 @@ const Echart2 = () => {
         console.log(inputValue); // 在控制台打印输入的值
 
         try {
-            const response = await fetch('http://localhost:8080/api/getUserData', {
-                method: 'POST',
+            const response = await fetch(`http://localhost:8050/userRepos?username=${inputValue}`, {
+                method: 'GET', // 将方法改为 GET
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ username: inputValue }),
             });
-
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
+            console.log(`http://localhost:8050/userRepos?username=${inputValue}`);
+            // if (!response.ok) {
+            //     throw new Error('Network response was not ok');
+            // }
 
             const data = await response.json();
             loadChartData(data); // 数据加载后渲染图表
@@ -55,7 +54,7 @@ const Echart2 = () => {
                     bottom: '1%',
                     right: '20%',
                     symbolSize: 7,
-                    initialTreeDepth: 3, // 设置初始展开深度
+                    initialTreeDepth: 3,
                     label: {
                         position: 'left',
                         verticalAlign: 'middle',
@@ -81,7 +80,7 @@ const Echart2 = () => {
                     emphasis: {
                         focus: 'descendant'
                     },
-                    expandAndCollapse: true, // 允许手动展开和收缩
+                    expandAndCollapse: true,
                     animationDuration: 550,
                     animationDurationUpdate: 750
                 }
