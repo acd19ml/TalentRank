@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/acd19ml/TalentRank/apps/user"
@@ -104,83 +105,30 @@ func (s *ServiceImpl) QueryUsers(ctx context.Context, req *user.QueryUserRequest
 	return result, nil
 }
 
-func (s *ServiceImpl) DescribeUserRepos(ctx context.Context, req *user.DescribeUserReposRequest) (*user.UserRepos, error) {
-	// 初始化返回结果
-	userRepos := user.NewUserRepos()
-	var orgs string // 用于接收 organizations 字段的 JSON 数据
-
-	// 准备并执行用户查询
-	err := s.db.QueryRowContext(ctx, QueryUser, req.Username).Scan(
-		&userRepos.User.Id,
-		&userRepos.User.Username,
-		&userRepos.User.Name,
-		&userRepos.User.Company,
-		&userRepos.User.Blog,
-		&userRepos.User.Location,
-		&userRepos.User.Email,
-		&userRepos.User.Bio,
-		&userRepos.User.Followers,
-		&orgs, // 临时变量存储 organizations
-		&userRepos.User.Score,
-		&userRepos.User.PossibleNation,
-		&userRepos.User.ConfidenceLevel,
-	)
+func (s *ServiceImpl) DescribeUserRepos(ctx context.Context, req *user.DescribeUserReposRequest) (string, error) {
+	// 设置 @result 为 NULL
+	_, err := s.db.ExecContext(ctx, "SET @result = NULL;")
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("user with username %s not found", req.Username)
-		}
-		return nil, fmt.Errorf("failed to query user: %w", err)
+		return "", fmt.Errorf("failed to set result variable: %w", err)
 	}
 
-	// 检查 organizations 字段是否为空，然后再执行 JSON 解析
-	if orgs != "" {
-		if err := json.Unmarshal([]byte(orgs), &userRepos.User.Organizations); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal organizations for user %s: %w", userRepos.User.Id, err)
-		}
-	} else {
-		// 如果 orgs 为空，初始化为空数组，避免后续使用中的 nil 引发问题
-		userRepos.User.Organizations = []string{}
-	}
-
-	// 准备 Repo 查询语句
-	rows, err := s.db.QueryContext(ctx, QueryRepos, userRepos.User.Id)
+	// 调用存储过程 GetUserData
+	_, err = s.db.ExecContext(ctx, "CALL GetUserData(?, @result);", req.Username)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query repos for user %s: %w", userRepos.User.Id, err)
-	}
-	defer rows.Close()
-
-	// 遍历查询结果，填充 Repo 信息
-	for rows.Next() {
-		repo := user.NewRepo()
-		if err := rows.Scan(
-			&repo.Id,
-			&repo.User_id,
-			&repo.Repo,
-			&repo.Star,
-			&repo.Fork,
-			&repo.Dependent,
-			&repo.Commits,
-			&repo.CommitsTotal,
-			&repo.Issue,
-			&repo.IssueTotal,
-			&repo.PullRequest,
-			&repo.PullRequestTotal,
-			&repo.CodeReview,
-			&repo.CodeReviewTotal,
-			&repo.LineChange,
-			&repo.LineChangeTotal,
-		); err != nil {
-			return nil, fmt.Errorf("failed to scan repo data for user %s: %w", userRepos.User.Id, err)
-		}
-
-		// 添加 Repo 到用户的 Repos 列表
-		userRepos.AddRepos(repo)
+		return "", fmt.Errorf("failed to execute stored procedure: %w", err)
 	}
 
-	// 检查遍历错误
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error during repo rows iteration for user %s: %w", userRepos.User.Id, err)
+	// 获取 @result 的值
+	var result sql.NullString
+	err = s.db.QueryRowContext(ctx, "SELECT @result;").Scan(&result)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch result: %w", err)
 	}
 
-	return userRepos, nil
+	// 检查结果是否为空
+	if !result.Valid {
+		return "", errors.New("no data found for the specified user")
+	}
+
+	return result.String, nil
 }
