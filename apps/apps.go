@@ -5,6 +5,7 @@ import (
 
 	"github.com/acd19ml/TalentRank/apps/user"
 	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -18,7 +19,25 @@ var (
 	LlmService  user.LLMService
 	implApps    = map[string]ImplService{}
 	ginApps     = map[string]GinService{}
+	grpcApps    = map[string]GrpcService{}
 )
+
+type GrpcService interface {
+	Registry(server *grpc.Server)
+	Config()
+	Name() string
+}
+
+func RegistryGrpc(svc GrpcService) {
+	// 检查服务是否已经注册过
+	if _, ok := grpcApps[svc.Name()]; ok {
+		// 如果该服务已经注册，抛出一个 panic 错误，避免重复注册
+		panic(fmt.Sprintf("service %s already registered", svc.Name()))
+	}
+
+	// 将服务注册到 svcs 容器，键是服务的名字，值是该服务的实例
+	grpcApps[svc.Name()] = svc
+}
 
 type ImplService interface {
 	Config()
@@ -78,6 +97,23 @@ func LoadedGinApps() (names []string) {
 	return
 }
 
+func LoadedGrpcApps() (names []string) {
+	for k := range grpcApps {
+		names = append(names, k)
+	}
+	return
+}
+
+func InitGrpc(server *grpc.Server) {
+	for _, v := range grpcApps {
+		v.Config()
+	}
+
+	for _, v := range grpcApps {
+		v.Registry(server)
+	}
+}
+
 func InitGin(r gin.IRouter) {
 
 	// 初始化对象
@@ -94,6 +130,10 @@ func InitGin(r gin.IRouter) {
 
 // 用户初始化 注册到Ioc容器里面的所有服务
 func InitImpl() {
+	for _, v := range grpcApps {
+		v.Config()
+	}
+
 	for _, v := range implApps {
 		v.Config()
 	}

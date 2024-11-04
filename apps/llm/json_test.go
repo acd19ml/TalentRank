@@ -1,19 +1,18 @@
-package impl_test
+package llm_test
 
 import (
 	"context"
 	"testing"
 
+	"github.com/acd19ml/TalentRank/apps/llm"
+	"github.com/acd19ml/TalentRank/apps/llm/impl"
 	"github.com/acd19ml/TalentRank/apps/user"
-	"github.com/acd19ml/TalentRank/apps/user/impl"
-	"github.com/acd19ml/TalentRank/apps/user/llm"
-	_ "github.com/acd19ml/TalentRank/apps/user/llm"
 )
 
 // TestProcessChatCompletionAndUnmarshal 测试 ProcessChatCompletion 和 UnmarshalToUserResponceByLLM 方法
 func TestProcessChatCompletionAndUnmarshal(t *testing.T) {
 	// 初始化 ChatService 单例
-	err := llm.Init()
+	err := impl.Init()
 	if err != nil {
 		t.Fatalf("Failed to initialize ChatService: %v", err)
 	}
@@ -31,12 +30,12 @@ func TestProcessChatCompletionAndUnmarshal(t *testing.T) {
 	}
 
 	// 生成请求 JSON
-	finalJSON, err := impl.GetUserReposJSONWithRequest(ctx, userins)
+	finalJSON, err := llm.GetUserReposJSONWithRequest(ctx, userins)
 	if err != nil {
 		t.Fatalf("GetUserReposJSONWithRequest failed: %v", err)
 	}
 	var svc user.LLMService
-	svc = llm.NewChatService()
+	svc = impl.NewChatService()
 	// 调用 ProcessChatCompletion 并获取响应
 	responseJSON, err := svc.ProcessChatCompletion(finalJSON)
 	if err != nil {

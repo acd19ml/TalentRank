@@ -42,6 +42,8 @@ var StartCmd = &cobra.Command{
 		go svc.WaitStop(ch)
 
 		// 3. 启动服务
+		go svc.grpc.Start()
+
 		return svc.Start()
 	},
 }
@@ -49,6 +51,7 @@ var StartCmd = &cobra.Command{
 func newManager() *manager {
 	return &manager{
 		http: protocol.NewHttpService(),
+		grpc: protocol.NewGRPCService(),
 	}
 }
 
@@ -56,6 +59,7 @@ func newManager() *manager {
 // 1. HTTP服务的启动
 type manager struct {
 	http *protocol.HttpService
+	grpc *protocol.GRPCService
 }
 
 func (m *manager) Start() error {
@@ -76,6 +80,10 @@ func (m *manager) WaitStop(ch <-chan os.Signal) { //只读channel
 	for v := range ch {
 		switch v {
 		default:
+			// 先关闭内部
+			if err := m.grpc.Stop(); err != nil {
+				log.Printf("grpc stop error: %s", err)
+			}
 			log.Printf("receive signal: %s", v)
 			m.http.Stop()
 		}

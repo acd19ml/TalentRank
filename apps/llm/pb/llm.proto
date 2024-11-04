@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package llm;
+
+option go_package = "github.com/acd19ml/TalentRank/apps/llm";
+
+service LLMService {
+    rpc ProcessChatCompletion(ChatRequest) returns (ChatResponse);
+}
+
+message ChatRequest {
+    string input_json = 1;  // 包含用户 JSON 数据的字符串
+}
+
+message ChatResponse {
+    string output_json = 1;  // LLM 返回的 JSON 数据
+}

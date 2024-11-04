@@ -9,8 +9,9 @@ import (
 	"sync"
 
 	"github.com/acd19ml/TalentRank/apps"
+	"github.com/acd19ml/TalentRank/apps/git"
+	"github.com/acd19ml/TalentRank/apps/llm"
 	"github.com/acd19ml/TalentRank/apps/user"
-	_ "github.com/acd19ml/TalentRank/apps/user/llm"
 )
 
 func (u *ServiceImpl) save(ctx context.Context, ins *user.UserRepos) error {
@@ -114,7 +115,6 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 	if userins == nil {
 		return nil, errors.New("constructUser returned nil for userins")
 	}
-	// 检查关键字段是否已初始化
 	if userins.Username == "" {
 		return nil, errors.New("username is empty in userins")
 	}
@@ -127,10 +127,12 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 	errCh := make(chan error, 10) // 用于捕获错误
 
 	// 定义结果 map
-	starsByRepo, forksByRepo, dependentsByRepo := map[string]int{}, map[string]int{}, map[string]int{}
-	totalCommitsByRepo, totalIssuesByRepo := map[string][]int{}, map[string]int{}
-	userIssuesByRepo, totalPRsByRepo, userPRsByRepo := map[string]int{}, map[string]int{}, map[string]int{}
-	totalReviewsByRepo, userReviewsByRepo := map[string]int{}, map[string]int{}
+	starsByRepo, forksByRepo, dependentsByRepo := map[string]int32{}, map[string]int32{}, map[string]int32{}
+	totalCommitsByRepo, totalIssuesByRepo := map[string][]int32{}, map[string]int32{}
+	userIssuesByRepo, totalPRsByRepo, userPRsByRepo := map[string]int32{}, map[string]int32{}, map[string]int32{}
+	totalReviewsByRepo, userReviewsByRepo := map[string]int32{}, map[string]int32{}
+
+	req := &git.GetUsernameRequest{Username: username}
 
 	// 启动 goroutines 获取每个仓库信息
 	wg.Add(11)
@@ -138,29 +140,12 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 	go func() {
 		defer wg.Done()
 
-		// 检查 userins 是否为空
-		if userins == nil || userins.Username == "" {
-			errCh <- errors.New("userins or username is nil/empty in constructUserRepos")
-			return
-		}
-
 		if userins.Location == "" {
-			log.Println("Warning: userins.Location is empty in constructUserRepos")
+			log.Println("Warning: Location is empty communicating with LLM")
 
-			// 检查 s.llm 是否已初始化
-			if s.llm == nil {
-				errCh <- errors.New("s.llm is nil, ensure it is initialized before calling constructUserRepos")
-				return
-			}
-
-			inputJSON, err := GetUserReposJSONWithRequest(ctx, userins)
+			inputJSON, err := llm.GetUserReposJSONWithRequest(ctx, userins)
 			if err != nil {
 				errCh <- fmt.Errorf("failed to create JSON request: %w", err)
-				return
-			}
-
-			if inputJSON == nil {
-				errCh <- errors.New("inputJSON is nil in constructUserRepos")
 				return
 			}
 
@@ -205,9 +190,9 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	go func() {
 		defer wg.Done()
-		if result, err := s.svc.GetStarsByRepo(ctx, username); err == nil {
+		if result, err := s.svc.GetStarsByRepo(ctx, req); err == nil {
 			mu.Lock()
-			starsByRepo = result
+			starsByRepo = result.RepoMap
 			mu.Unlock()
 		} else {
 			errCh <- fmt.Errorf("failed to get stars by repo: %w", err)
@@ -216,9 +201,9 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	go func() {
 		defer wg.Done()
-		if result, err := s.svc.GetForksByRepo(ctx, username); err == nil {
+		if result, err := s.svc.GetForksByRepo(ctx, req); err == nil {
 			mu.Lock()
-			forksByRepo = result
+			forksByRepo = result.RepoMap
 			mu.Unlock()
 		} else {
 			errCh <- fmt.Errorf("failed to get forks by repo: %w", err)
@@ -227,9 +212,9 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	go func() {
 		defer wg.Done()
-		if result, err := s.svc.GetDependentRepositoriesByRepo(ctx, username); err == nil {
+		if result, err := s.svc.GetDependentRepositoriesByRepo(ctx, req); err == nil {
 			mu.Lock()
-			dependentsByRepo = result
+			dependentsByRepo = result.RepoMap
 			mu.Unlock()
 		} else {
 			errCh <- fmt.Errorf("failed to get dependents by repo: %w", err)
@@ -238,9 +223,11 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	go func() {
 		defer wg.Done()
-		if result, err := s.svc.GetLineChangesByRepo(ctx, username); err == nil {
+		if result, err := s.svc.GetLineChangesByRepo(ctx, req); err == nil {
 			mu.Lock()
-			totalCommitsByRepo = result
+			for repoName, changes := range result.RepoChanges {
+				totalCommitsByRepo[repoName] = []int32{changes.TotalChanges, changes.UserChanges, changes.TotalCommits, changes.UserCommits}
+			}
 			mu.Unlock()
 		} else {
 			errCh <- fmt.Errorf("failed to get line changes by repo: %w", err)
@@ -249,9 +236,9 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	go func() {
 		defer wg.Done()
-		if result, err := s.svc.GetTotalIssuesByRepo(ctx, username); err == nil {
+		if result, err := s.svc.GetTotalIssuesByRepo(ctx, req); err == nil {
 			mu.Lock()
-			totalIssuesByRepo = result
+			totalIssuesByRepo = result.RepoMap
 			mu.Unlock()
 		} else {
 			errCh <- fmt.Errorf("failed to get total issues by repo: %w", err)
@@ -260,9 +247,9 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	go func() {
 		defer wg.Done()
-		if result, err := s.svc.GetUserSolvedIssuesByRepo(ctx, username); err == nil {
+		if result, err := s.svc.GetUserSolvedIssuesByRepo(ctx, req); err == nil {
 			mu.Lock()
-			userIssuesByRepo = result
+			userIssuesByRepo = result.RepoMap
 			mu.Unlock()
 		} else {
 			errCh <- fmt.Errorf("failed to get user solved issues by repo: %w", err)
@@ -271,9 +258,9 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	go func() {
 		defer wg.Done()
-		if result, err := s.svc.GetTotalPullRequestsByRepo(ctx, username); err == nil {
+		if result, err := s.svc.GetTotalPullRequestsByRepo(ctx, req); err == nil {
 			mu.Lock()
-			totalPRsByRepo = result
+			totalPRsByRepo = result.RepoMap
 			mu.Unlock()
 		} else {
 			errCh <- fmt.Errorf("failed to get total pull requests by repo: %w", err)
@@ -282,9 +269,9 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	go func() {
 		defer wg.Done()
-		if result, err := s.svc.GetUserMergedPullRequestsByRepo(ctx, username); err == nil {
+		if result, err := s.svc.GetUserMergedPullRequestsByRepo(ctx, req); err == nil {
 			mu.Lock()
-			userPRsByRepo = result
+			userPRsByRepo = result.RepoMap
 			mu.Unlock()
 		} else {
 			errCh <- fmt.Errorf("failed to get user merged pull requests by repo: %w", err)
@@ -293,9 +280,9 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	go func() {
 		defer wg.Done()
-		if result, err := s.svc.GetTotalCodeReviewsByRepo(ctx, username); err == nil {
+		if result, err := s.svc.GetTotalCodeReviewsByRepo(ctx, req); err == nil {
 			mu.Lock()
-			totalReviewsByRepo = result
+			totalReviewsByRepo = result.RepoMap
 			mu.Unlock()
 		} else {
 			errCh <- fmt.Errorf("failed to get total code reviews by repo: %w", err)
@@ -304,9 +291,9 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	go func() {
 		defer wg.Done()
-		if result, err := s.svc.GetUserCodeReviewsByRepo(ctx, username); err == nil {
+		if result, err := s.svc.GetUserCodeReviewsByRepo(ctx, req); err == nil {
 			mu.Lock()
-			userReviewsByRepo = result
+			userReviewsByRepo = result.RepoMap
 			mu.Unlock()
 		} else {
 			errCh <- fmt.Errorf("failed to get user code reviews by repo: %w", err)
@@ -328,50 +315,37 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 	// 构建Repo列表
 	var repos []*user.Repo
 	for repoName := range starsByRepo {
-		// 避免 totalCommitsByRepo 不存在或长度不够的情况
 		if len(totalCommitsByRepo[repoName]) < 4 {
 			log.Printf("Warning: Skipping repo %s due to insufficient data in totalCommitsByRepo", repoName)
-			totalCommitsByRepo[repoName] = []int{0, 0, 0, 0} // 使用默认值补全
+			totalCommitsByRepo[repoName] = []int32{0, 0, 0, 0}
 		}
 
-		// 使用 defaultRepoData 保证每个数据项都有值
-		defaultRepoData(starsByRepo, repoName)
-		defaultRepoData(forksByRepo, repoName)
-		defaultRepoData(dependentsByRepo, repoName)
-		defaultRepoData(totalIssuesByRepo, repoName)
-		defaultRepoData(userIssuesByRepo, repoName)
-		defaultRepoData(totalPRsByRepo, repoName)
-		defaultRepoData(userPRsByRepo, repoName)
-		defaultRepoData(totalReviewsByRepo, repoName)
-		defaultRepoData(userReviewsByRepo, repoName)
 		repo := &user.Repo{
 			User_id:          userins.Id,
 			Repo:             repoName,
-			Star:             starsByRepo[repoName],
-			Fork:             forksByRepo[repoName],
-			Dependent:        dependentsByRepo[repoName],
-			Commits:          totalCommitsByRepo[repoName][3], // 用户提交
-			CommitsTotal:     totalCommitsByRepo[repoName][2], // 总提交
-			Issue:            userIssuesByRepo[repoName],
-			IssueTotal:       totalIssuesByRepo[repoName],
-			PullRequest:      userPRsByRepo[repoName],
-			PullRequestTotal: totalPRsByRepo[repoName],
-			CodeReview:       userReviewsByRepo[repoName],
-			CodeReviewTotal:  totalReviewsByRepo[repoName],
-			LineChange:       totalCommitsByRepo[repoName][1], // 用户变更行数
-			LineChangeTotal:  totalCommitsByRepo[repoName][0], // 总变更行数
+			Star:             int(starsByRepo[repoName]),
+			Fork:             int(forksByRepo[repoName]),
+			Dependent:        int(dependentsByRepo[repoName]),
+			Commits:          int(totalCommitsByRepo[repoName][3]),
+			CommitsTotal:     int(totalCommitsByRepo[repoName][2]),
+			Issue:            int(userIssuesByRepo[repoName]),
+			IssueTotal:       int(totalIssuesByRepo[repoName]),
+			PullRequest:      int(userPRsByRepo[repoName]),
+			PullRequestTotal: int(totalPRsByRepo[repoName]),
+			CodeReview:       int(userReviewsByRepo[repoName]),
+			CodeReviewTotal:  int(totalReviewsByRepo[repoName]),
+			LineChange:       int(totalCommitsByRepo[repoName][1]),
+			LineChangeTotal:  int(totalCommitsByRepo[repoName][0]),
 		}
 		repo.InjectDefault()
 		repos = append(repos, repo)
 	}
 
-	// 创建并返回 UserRepos 结构体
 	userRepos := &user.UserRepos{
 		User:  userins,
 		Repos: repos,
 	}
 
-	// 计算用户的最终技术评分，并插入结构体
 	if err = calculateOverallScore(ctx, userRepos); err != nil {
 		return nil, fmt.Errorf("failed to calculate overall score: %w", err)
 	}
@@ -384,72 +358,149 @@ func (s *ServiceImpl) constructUser(ctx context.Context, username string) (*user
 		return nil, errors.New("username cannot be empty")
 	}
 
-	// 获取用户信息
-	name, err := s.svc.GetName(ctx, username)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user name: %w", err)
-	}
+	req := &git.GetUsernameRequest{Username: username}
 
-	company, err := s.svc.GetCompany(ctx, username)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user company: %w", err)
-	}
-
-	location, err := s.svc.GetLocation(ctx, username)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user location: %w", err)
-	}
-
-	email, err := s.svc.GetEmail(ctx, username)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user email: %w", err)
-	}
-
-	bio, err := s.svc.GetBio(ctx, username)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user bio: %w", err)
-	}
-
-	organizations, err := s.svc.GetOrganizations(ctx, username)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user organizations: %w", err)
-	}
-
-	followers, err := s.svc.GetFollowers(ctx, username)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user followers: %w", err)
-	}
-
-	readme, err := s.svc.GetReadme(ctx, username, apps.CharLimit, apps.RepoLimit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user readme: %w", err)
-	}
-
-	commits, err := s.svc.GetCommits(ctx, username, apps.CharLimit, apps.RepoLimit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user commits: %w", err)
-	}
-
-	// 创建并返回User结构体
 	user := &user.User{
-		Id:            "", // 后续通过 InjectDefault() 填充
-		Username:      username,
-		Name:          name,
-		Company:       company,
-		Location:      location,
-		Email:         email,
-		Bio:           bio,
-		Followers:     followers,
-		Organizations: organizations,
-		Readme:        readme,
-		Commits:       commits,
-		// Score、PossibleNation 和 ConfidenceLevel 需要根据特定逻辑或数据计算
-		Score:           0,
-		PossibleNation:  "",
-		ConfidenceLevel: "",
+		Username: username,
 	}
 
-	// 为新用户生成默认 ID
+	var wg sync.WaitGroup
+	mu := sync.Mutex{}
+	errCh := make(chan error, 10) // 缓存通道，用于收集错误
+
+	// 使用 goroutine 发起并发请求
+	wg.Add(10)
+
+	go func() {
+		defer wg.Done()
+		nameResp, err := s.svc.GetName(ctx, req)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to get user name: %w", err)
+			return
+		}
+		mu.Lock()
+		user.Name = nameResp.Result
+		mu.Unlock()
+	}()
+
+	go func() {
+		defer wg.Done()
+		companyResp, err := s.svc.GetCompany(ctx, req)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to get user company: %w", err)
+			return
+		}
+		mu.Lock()
+		user.Company = companyResp.Result
+		mu.Unlock()
+	}()
+
+	go func() {
+		defer wg.Done()
+		locationResp, err := s.svc.GetLocation(ctx, req)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to get user location: %w", err)
+			return
+		}
+		mu.Lock()
+		user.Location = locationResp.Result
+		mu.Unlock()
+	}()
+
+	go func() {
+		defer wg.Done()
+		emailResp, err := s.svc.GetEmail(ctx, req)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to get user email: %w", err)
+			return
+		}
+		mu.Lock()
+		user.Email = emailResp.Result
+		mu.Unlock()
+	}()
+
+	go func() {
+		defer wg.Done()
+		bioResp, err := s.svc.GetBio(ctx, req)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to get user bio: %w", err)
+			return
+		}
+		mu.Lock()
+		user.Bio = bioResp.Result
+		mu.Unlock()
+	}()
+
+	go func() {
+		defer wg.Done()
+		orgsResp, err := s.svc.GetOrganizations(ctx, req)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to get user organizations: %w", err)
+			return
+		}
+		mu.Lock()
+		user.Organizations = orgsResp.Organizations
+		mu.Unlock()
+	}()
+
+	go func() {
+		defer wg.Done()
+		followersResp, err := s.svc.GetFollowers(ctx, req)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to get user followers: %w", err)
+			return
+		}
+		mu.Lock()
+		user.Followers = int(followersResp.Result)
+		mu.Unlock()
+	}()
+
+	go func() {
+		defer wg.Done()
+		readmeReq := &git.GetReadmeRequest{
+			Username:  username,
+			CharLimit: apps.CharLimit,
+			RepoLimit: apps.RepoLimit,
+		}
+		readmeResp, err := s.svc.GetReadme(ctx, readmeReq)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to get user readme: %w", err)
+			return
+		}
+		mu.Lock()
+		user.Readme = readmeResp.Result
+		mu.Unlock()
+	}()
+
+	go func() {
+		defer wg.Done()
+		commitsReq := &git.GetCommitsRequest{
+			Username:  username,
+			CharLimit: apps.CharLimit,
+			RepoLimit: apps.RepoLimit,
+		}
+		commitsResp, err := s.svc.GetCommits(ctx, commitsReq)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to get user commits: %w", err)
+			return
+		}
+		mu.Lock()
+		user.Commits = commitsResp.Result
+		mu.Unlock()
+	}()
+
+	// 等待所有 goroutines 完成
+	wg.Wait()
+	close(errCh) // 关闭错误通道
+
+	// 检查是否有错误
+	for err := range errCh {
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// 填充 ID
 	user.InjectDefault()
 
 	return user, nil

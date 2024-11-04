@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package git;
+
+option go_package = "github.com/acd19ml/TalentRank/apps/git";
+
+service GitService {
+    // Repo table methods
+    rpc GetDependentRepositoriesByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
+    rpc GetStarsByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
+    rpc GetForksByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
+    rpc GetTotalIssuesByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
+    rpc GetUserSolvedIssuesByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
+    rpc GetTotalPullRequestsByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
+    rpc GetUserMergedPullRequestsByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
+    rpc GetTotalCodeReviewsByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
+    rpc GetUserCodeReviewsByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
+    rpc GetLineChangesByRepo(GetUsernameRequest) returns (RepoLineChangesResponse);
+
+    // User table methods
+    rpc GetName(GetUsernameRequest) returns (StringResponse);
+    rpc GetCompany(GetUsernameRequest) returns (StringResponse);
+    rpc GetLocation(GetUsernameRequest) returns (StringResponse);
+    rpc GetEmail(GetUsernameRequest) returns (StringResponse);
+    rpc GetBio(GetUsernameRequest) returns (StringResponse);
+    rpc GetOrganizations(GetUsernameRequest) returns (OrgListResponse);
+    rpc GetFollowers(GetUsernameRequest) returns (IntResponse);
+    rpc GetReadme(GetReadmeRequest) returns (StringResponse);
+    rpc GetCommits(GetCommitsRequest) returns (StringResponse);
+}
+
+// 请求和响应消息定义
+
+// 通用的用户名请求消息
+message GetUsernameRequest {
+    string username = 1;
+}
+
+// 用于Repo table方法的响应消息，返回一个map形式的数据结构
+message RepoIntMapResponse {
+    map<string, int32> repo_map = 1;
+}
+
+// 用于GetLineChangesByRepo的响应消息
+message RepoLineChangesResponse {
+    map<string, LineChangeStats> repo_changes = 1;
+}
+
+// LineChangeStats包含每个仓库的增删行数信息
+message LineChangeStats {
+    int32 total_changes = 1;
+    int32 user_changes = 2;
+    int32 total_commits = 3;
+    int32 user_commits = 4;
+}
+
+// 返回字符串的通用响应消息
+message StringResponse {
+    string result = 1;
+}
+
+// 返回整数的通用响应消息
+message IntResponse {
+    int32 result = 1;
+}
+
+// 返回组织列表的响应消息
+message OrgListResponse {
+    repeated string organizations = 1;
+}
+
+// Readme请求消息
+message GetReadmeRequest {
+    string username = 1;
+    int32 char_limit = 2;
+    int32 repo_limit = 3;
+}
+
+// Commits请求消息
+message GetCommitsRequest {
+    string username = 1;
+    int32 char_limit = 2;
+    int32 repo_limit = 3;
+}
+
+// UserResponse 消息，用于返回完整的用户信息
+message UserResponse {
+    string name = 1;
+    string company = 2;
+    string location = 3;
+    string email = 4;
+    string bio = 5;
+    int32 followers = 6;
+}
+
+// 请求单个仓库信息的消息
+message RepoRequest {
+    string owner = 1;      // 仓库拥有者的用户名
+    string repo_name = 2;  // 仓库名称
+}
+
+message RepoResponse {
+    repeated string repos = 1;
+}
