@@ -9,11 +9,3 @@ type Service interface {
 	QueryUsers(context.Context, *QueryUserRequest) (*UserSet, error)
 	DescribeUserRepos(context.Context, *DescribeUserReposRequest) (string, error)
 }
-
-type LLMService interface {
-	ProcessChatCompletion(inputJSON []byte) ([]byte, error)
-}
-
-type LLMResponseService interface {
-	UnmarshalToUserResponceByLLM(data []byte) (*UserResponceByLLM, error)
-}

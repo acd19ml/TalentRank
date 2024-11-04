@@ -16,7 +16,6 @@ const (
 
 var (
 	UserService user.Service
-	LlmService  user.LLMService
 	implApps    = map[string]ImplService{}
 	ginApps     = map[string]GinService{}
 	grpcApps    = map[string]GrpcService{}
@@ -37,6 +36,7 @@ func RegistryGrpc(svc GrpcService) {
 
 	// 将服务注册到 svcs 容器，键是服务的名字，值是该服务的实例
 	grpcApps[svc.Name()] = svc
+
 }
 
 type ImplService interface {
@@ -53,7 +53,7 @@ func RegistryImpl(svc ImplService) {
 
 	// 将服务注册到 svcs 容器，键是服务的名字，值是该服务的实例
 	implApps[svc.Name()] = svc
-	// 判断传入的服务是否满足 form.Service 接口
+	// 判断传入的服务是否满足 user.Service 接口
 	if v, ok := svc.(user.Service); ok {
 		// 如果是 user.Service 类型的服务，将其赋值给全局的 UserService
 		UserService = v

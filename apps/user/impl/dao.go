@@ -87,14 +87,6 @@ func (u *ServiceImpl) save(ctx context.Context, ins *user.UserRepos) error {
 	return nil
 }
 
-func defaultRepoData(data map[string]int, keys ...string) {
-	for _, key := range keys {
-		if _, ok := data[key]; !ok {
-			data[key] = 0
-		}
-	}
-}
-
 // constructUserRepos 创建用户及其仓库信息，开启多个 goroutine 并发获取数据
 func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (*user.UserRepos, error) {
 	if username == "" {
@@ -108,7 +100,7 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 	}()
 
 	// 创建User实例
-	userins, err := s.constructUser(ctx, username)
+	userins, err := s.ConstructUser(ctx, username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
@@ -141,47 +133,9 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 		defer wg.Done()
 
 		if userins.Location == "" {
-			log.Println("Warning: Location is empty communicating with LLM")
-
-			inputJSON, err := llm.GetUserReposJSONWithRequest(ctx, userins)
-			if err != nil {
-				errCh <- fmt.Errorf("failed to create JSON request: %w", err)
-				return
+			if err := s.InferUserLocationWithLLM(ctx, userins); err != nil {
+				errCh <- fmt.Errorf("failed to infer user location: %w", err)
 			}
-
-			output, err := s.llm.ProcessChatCompletion(inputJSON)
-			if err != nil {
-				errCh <- fmt.Errorf("failed to process chat completion: %w", err)
-				return
-			}
-
-			if output == nil {
-				errCh <- errors.New("output is nil in constructUserRepos")
-				return
-			}
-
-			// 检查 s.rsp 是否已初始化
-			if s.rsp == nil {
-				errCh <- errors.New("s.rsp is nil, ensure it is initialized before calling constructUserRepos")
-				return
-			}
-
-			data, err := s.rsp.UnmarshalToUserResponceByLLM(output)
-			if err != nil {
-				errCh <- fmt.Errorf("failed to unmarshal response JSON: %w", err)
-				return
-			}
-
-			// 检查 data 中的关键字段
-			if data.PossibleNation == "" || data.ConfidenceLevel == "" {
-				log.Printf("Warning: LLM returned empty nation or confidence level: %+v", data)
-				errCh <- errors.New("received empty possible_nation or confidence_level")
-				return
-			}
-
-			userins.PossibleNation = data.PossibleNation
-			userins.ConfidenceLevel = data.ConfidenceLevel
-
 		} else {
 			userins.PossibleNation = userins.Location
 			userins.ConfidenceLevel = "100"
@@ -346,14 +300,14 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 		Repos: repos,
 	}
 
-	if err = calculateOverallScore(ctx, userRepos); err != nil {
+	if err = calculateOverallScore(userRepos); err != nil {
 		return nil, fmt.Errorf("failed to calculate overall score: %w", err)
 	}
 
 	return userRepos, nil
 }
 
-func (s *ServiceImpl) constructUser(ctx context.Context, username string) (*user.User, error) {
+func (s *ServiceImpl) ConstructUser(ctx context.Context, username string) (*user.User, error) {
 	if username == "" {
 		return nil, errors.New("username cannot be empty")
 	}
@@ -507,7 +461,7 @@ func (s *ServiceImpl) constructUser(ctx context.Context, username string) (*user
 }
 
 // CalculateOverallScore 计算开发者的最终技术评分
-func calculateOverallScore(ctx context.Context, userRepos *user.UserRepos) error {
+func calculateOverallScore(userRepos *user.UserRepos) error {
 	// 权重设置
 	wStar := 3.0      // Star 权重
 	wFork := 2.0      // Fork 权重
@@ -533,7 +487,7 @@ func calculateOverallScore(ctx context.Context, userRepos *user.UserRepos) error
 			projectImpact := wStar*float64(repo.Star) + wFork*float64(repo.Fork) + wDependent*float64(repo.Dependent)
 
 			// 计算项目的技术评分（贡献度 * 项目影响力）
-			contribution, err := calculateContribution(ctx, repo)
+			contribution, err := calculateContribution(repo)
 			if err != nil {
 				log.Printf("Failed to calculate contribution for repo %s: %v", repo.Repo, err)
 				projectScores <- 0
@@ -566,7 +520,7 @@ func calculateOverallScore(ctx context.Context, userRepos *user.UserRepos) error
 }
 
 // CalculateContribution 计算给定用户在给定项目中的贡献度
-func calculateContribution(ctx context.Context, repo *user.Repo) (float64, error) {
+func calculateContribution(repo *user.Repo) (float64, error) {
 	// 权重设置
 	w1 := 0.25 // 代码提交数的权重
 	w2 := 0.3  // 解决的 Issue 和合并的 PR 数的权重
@@ -612,4 +566,33 @@ func calculateContribution(ctx context.Context, repo *user.Repo) (float64, error
 	finalContribution := contribution / totalWeight
 
 	return finalContribution, nil
+}
+
+func (s *ServiceImpl) InferUserLocationWithLLM(ctx context.Context, userins *user.User) error {
+	inputJSON, err := user.GetUserReposJSONWithRequest(ctx, userins)
+	if err != nil {
+		return fmt.Errorf("failed to create JSON request: %w", err)
+	}
+
+	// 调用 gRPC 服务
+	req := &llm.ChatRequest{InputJson: string(inputJSON)}
+	resp, err := s.llm.ProcessChatCompletion(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to call LLM service: %w", err)
+	}
+
+	// 将返回的 JSON 反序列化为 UserResponseByLLM 结构体
+	var llmResponse user.UserResponceByLLM
+	if err := json.Unmarshal([]byte(resp.OutputJson), &llmResponse); err != nil {
+		return fmt.Errorf("failed to unmarshal LLM response: %w", err)
+	}
+
+	if llmResponse.PossibleNation == "" || llmResponse.ConfidenceLevel == "" {
+		return fmt.Errorf("LLM returned incomplete response: %v", llmResponse)
+	}
+
+	userins.PossibleNation = llmResponse.PossibleNation
+	userins.ConfidenceLevel = llmResponse.ConfidenceLevel
+
+	return nil
 }

@@ -1,8 +1,6 @@
 package user
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -104,27 +102,9 @@ func (r *Repo) InjectDefault() {
 	}
 }
 
-func NewUserResponseByLLM() *UserResponceByLLM {
-	return &UserResponceByLLM{}
-}
-
 type UserResponceByLLM struct {
 	PossibleNation  string `json:"possible_nation"`
 	ConfidenceLevel string `json:"confidence_level"`
-}
-
-func (r *UserResponceByLLM) UnmarshalToUserResponceByLLM(data []byte) (*UserResponceByLLM, error) {
-	err := json.Unmarshal(data, r)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
-	}
-	if r.PossibleNation == "" {
-		r.PossibleNation = "N/A"
-	}
-	if r.ConfidenceLevel == "" {
-		r.ConfidenceLevel = "0"
-	}
-	return r, nil
 }
 
 func NewRepo() *Repo {

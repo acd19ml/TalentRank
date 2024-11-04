@@ -42,7 +42,9 @@ var StartCmd = &cobra.Command{
 		go svc.WaitStop(ch)
 
 		// 3. 启动服务
-		go svc.grpc.Start()
+		svc.grpc.InitGRPC()
+		go svc.grpc.StartGit()
+		go svc.grpc.StartLlm()
 
 		return svc.Start()
 	},
@@ -51,7 +53,7 @@ var StartCmd = &cobra.Command{
 func newManager() *manager {
 	return &manager{
 		http: protocol.NewHttpService(),
-		grpc: protocol.NewGRPCService(),
+		grpc: protocol.NewGRPCGitService(),
 	}
 }
 

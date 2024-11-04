@@ -55,11 +55,12 @@ func NewDefaultApp() *App {
 }
 
 type App struct {
-	Name     string `toml:"name" env:"APP_NAME"`
-	Host     string `toml:"host" env:"APP_HOST"`
-	Port     string `toml:"port" env:"APP_PORT"`
-	Key      string `toml:"key" env:"APP_KEY"`
-	GrpcPort string `toml:"grpc_port" env:"APP_GRPC_PORT"`
+	Name    string `toml:"name" env:"APP_NAME"`
+	Host    string `toml:"host" env:"APP_HOST"`
+	Port    string `toml:"port" env:"APP_PORT"`
+	Key     string `toml:"key" env:"APP_KEY"`
+	GitPort string `toml:"git_port" env:"APP_GIT_PORT"`
+	LlmPort string `toml:"llm_port" env:"APP_LLM_PORT"`
 }
 
 func NewDefaultMySQL() *MySQL {
@@ -141,6 +142,10 @@ func (a *App) HTTPAddr() string {
 	return fmt.Sprintf("%s:%s", a.Host, a.Port)
 }
 
-func (a *App) GrpcAddr() string {
-	return fmt.Sprintf("%s:%s", a.Host, a.GrpcPort)
+func (a *App) GitAddr() string {
+	return fmt.Sprintf("%s:%s", a.Host, a.GitPort)
+}
+
+func (a *App) LlmAddr() string {
+	return fmt.Sprintf("%s:%s", a.Host, a.LlmPort)
 }

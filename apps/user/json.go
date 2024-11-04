@@ -1,12 +1,10 @@
-package llm
+package user
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	"github.com/acd19ml/TalentRank/apps/user"
 )
 
 // 定义 Message 和 Request 结构
@@ -21,7 +19,7 @@ type Request struct {
 }
 
 // GetUserReposJSONWithRequest 构造请求数据并返回 JSON
-func GetUserReposJSONWithRequest(ctx context.Context, user *user.User) ([]byte, error) {
+func GetUserReposJSONWithRequest(ctx context.Context, user *User) ([]byte, error) {
 	if user == nil {
 		return nil, errors.New("userins is nil in GetUserReposJSONWithRequest")
 	}

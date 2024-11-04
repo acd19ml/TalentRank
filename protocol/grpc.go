@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func NewGRPCService() *GRPCService {
+func NewGRPCGitService() *GRPCService {
 	svr := grpc.NewServer()
 	return &GRPCService{
 		svr: svr,
@@ -23,27 +23,50 @@ type GRPCService struct {
 	c   *conf.Config
 }
 
-func (s *GRPCService) Start() {
+func (s *GRPCService) InitGRPC() {
 	// 初始化所有grpc服务
 	apps.InitGrpc(s.svr)
 
 	apps.LoadedGrpcApps()
 	log.Printf("loaded grpc apps: %v", apps.LoadedGrpcApps())
+}
+
+func (s *GRPCService) StartGit() {
 
 	// 启动grpc服务
-	lis, err := net.Listen("tcp", s.c.App.GrpcAddr())
+	lis, err := net.Listen("tcp", s.c.App.GitAddr())
 	if err != nil {
-		log.Printf("listen grpc tcp conn error: %v", err)
+		log.Printf("listen git grpc tcp conn error: %v", err)
 		return
 	}
 
-	fmt.Printf("grpc server start at %s", s.c.App.GrpcAddr())
+	fmt.Printf("git grpc server start at %s\n", s.c.App.GitAddr())
 	if err := s.svr.Serve(lis); err != nil {
 		if err == grpc.ErrServerStopped {
-			log.Printf("grpc server stop")
+			log.Printf("git grpc server stop")
 		}
 
-		log.Printf("grpc server start error: %v", err.Error())
+		log.Printf("git grpc server start error: %v", err.Error())
+		return
+	}
+}
+
+func (s *GRPCService) StartLlm() {
+
+	// 启动grpc服务
+	lis, err := net.Listen("tcp", s.c.App.LlmAddr())
+	if err != nil {
+		log.Printf("listen llm grpc tcp conn error: %v", err)
+		return
+	}
+
+	fmt.Printf("llm grpc server start at %s\n", s.c.App.LlmAddr())
+	if err := s.svr.Serve(lis); err != nil {
+		if err == grpc.ErrServerStopped {
+			log.Printf("llm grpc server stop")
+		}
+
+		log.Printf("llm grpc server start error: %v", err.Error())
 		return
 	}
 }
