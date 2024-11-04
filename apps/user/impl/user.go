@@ -35,10 +35,19 @@ func (s *ServiceImpl) QueryUsers(ctx context.Context, req *user.QueryUserRequest
 	// 如果 `location` 有值，则在查询中添加条件
 	if req.Location != "" {
 		query = `
-			SELECT id, username, name, company, blog, location, email, bio, 
-				   followers, organizations, score, possible_nation, confidence_level
-			FROM User
-			WHERE location = ?
+			SELECT a.id, username, name, company, blog,
+       CASE 
+           WHEN a.location IS NULL OR a.location = '' THEN ''
+           ELSE (SELECT country_name FROM countries b WHERE a.location LIKE CONCAT('%', b.country_name, '%') LIMIT 1)
+       END AS Location,
+       email, bio, 
+       followers, organizations, round(score) score, 
+       possible_nation, confidence_level,
+       rank() OVER (ORDER BY score DESC) AS rankno
+		FROM User a 
+	WHERE 
+    (SELECT country_name FROM countries b WHERE a.location LIKE CONCAT('%', b.country_name, '%') LIMIT 1) = ?
+
 			LIMIT ? OFFSET ?;
 		`
 		args = append(args, req.Location, pageSize, offset)
@@ -70,7 +79,7 @@ func (s *ServiceImpl) QueryUsers(ctx context.Context, req *user.QueryUserRequest
 		// 扫描用户数据
 		if err := rows.Scan(&user.Id, &user.Username, &user.Name, &user.Company, &user.Blog,
 			&user.Location, &user.Email, &user.Bio, &user.Followers, &orgs, &user.Score,
-			&user.PossibleNation, &user.ConfidenceLevel); err != nil {
+			&user.PossibleNation, &user.ConfidenceLevel, &user.Rankno); err != nil {
 			return nil, fmt.Errorf("failed to scan user data: %w", err)
 		}
 

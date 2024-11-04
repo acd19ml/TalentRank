@@ -24,9 +24,16 @@ const (
 	`
 
 	Userquery = `
-		SELECT id, username, name, company, blog, location, email, bio, 
-			   followers, organizations, score, possible_nation, confidence_level
-		FROM User
+		SELECT a.id, username, name, company, blog,
+       CASE 
+           WHEN a.location IS NULL OR a.location = '' THEN ''
+           ELSE (SELECT country_name FROM countries b WHERE a.location LIKE CONCAT('%', b.country_name, '%') LIMIT 1)
+       END AS Location,
+       email, bio, 
+       followers, organizations, round(score) score, 
+       possible_nation, confidence_level,
+       rank() OVER (ORDER BY score DESC) AS rankno
+FROM User a 
 		LIMIT ? OFFSET ?;
 	`
 

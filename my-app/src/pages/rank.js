@@ -5,14 +5,20 @@ const columns = [
     {
         title: 'Rank No',
         dataIndex: 'rankno', // 这里可以根据你的需求调整
-        sorter: true,
-        width: '20%',
+        sorter: false,
+        width: '10%',
     },
     {
         title: 'Name',
         dataIndex: 'name',
-        sorter: true,
-        width: '30%',
+        sorter: false,
+        width: '15%',
+    },
+    {
+        title: 'UserName',
+        dataIndex: 'username',
+        sorter: false,
+        width: '15%',
     },
     {
         title: 'Location',
@@ -22,13 +28,25 @@ const columns = [
             { text: 'USA', value: 'USA' },
         ],
         onFilter: (value, record) => record.location.includes(value), // 筛选逻辑
-        width: '30%',
+        width: '15%',
     },
     {
         title: 'Score',
         dataIndex: 'score',
-        sorter: true,
+        sorter: false,
         width: '20%',
+    },
+    {
+        title: 'possible_nation',
+        dataIndex: 'possible_nation',
+        sorter: false,
+        width: '15%',
+    },
+    {
+        title: 'confidence_level',
+        dataIndex: 'confidence_level',
+        sorter: false,
+        width: '10%',
     },
 ];
 

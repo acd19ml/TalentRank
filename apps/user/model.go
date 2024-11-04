@@ -90,6 +90,7 @@ type User struct {
 	Score           float64  `json:"score"`
 	PossibleNation  string   `json:"possible_nation"`
 	ConfidenceLevel string   `json:"confidence_level"`
+	Rankno          string   `json:"rankno"`
 }
 
 func (r *Repo) Validate() error {
