@@ -54,7 +54,7 @@ func (u *ServiceImpl) save(ctx context.Context, ins *user.UserRepos) error {
 	}
 
 	// 执行插入语句
-	result, err := ustmt.ExecContext(ctx,
+	_, err = ustmt.ExecContext(ctx,
 		ins.Id, ins.Username, ins.Name, ins.Company, ins.Blog, ins.Location,
 		ins.Email, ins.Bio, ins.Followers, string(organizationsJSON), ins.Readme,
 		ins.Commits, ins.Score, ins.PossibleNation, ins.ConfidenceLevel,
@@ -62,7 +62,7 @@ func (u *ServiceImpl) save(ctx context.Context, ins *user.UserRepos) error {
 	if err != nil {
 		return err
 	} else {
-		fmt.Printf("insert user success, %v", result)
+		log.Printf("insert user %s success\n", ins.Username)
 	}
 
 	rstmt, err := tx.PrepareContext(ctx, InsertRepoSQL)
@@ -72,18 +72,16 @@ func (u *ServiceImpl) save(ctx context.Context, ins *user.UserRepos) error {
 	defer rstmt.Close()
 	for _, repo := range ins.Repos {
 		// 执行插入语句
-		result, err := rstmt.ExecContext(ctx,
+		_, err = rstmt.ExecContext(ctx,
 			repo.Id, ins.Id, repo.Repo, repo.Star, repo.Fork, repo.Dependent, repo.Commits,
 			repo.CommitsTotal, repo.Issue, repo.IssueTotal, repo.PullRequest, repo.PullRequestTotal,
 			repo.CodeReview, repo.CodeReviewTotal, repo.LineChange, repo.LineChangeTotal,
 		)
 		if err != nil {
 			return err
-		} else {
-			fmt.Printf("insert repo success, %v", result)
 		}
 	}
-
+	log.Printf("insert repo %s success\n", ins.Username)
 	return nil
 }
 
@@ -492,7 +490,6 @@ func calculateOverallScore(userRepos *user.UserRepos) error {
 			}
 
 			projectScore := contribution * projectImpact
-			log.Printf("Received %s score: %f\n", repo.Repo, projectScore)
 			// 将项目分数发送到 channel
 			projectScores <- projectScore
 		}(repo)
@@ -512,7 +509,7 @@ func calculateOverallScore(userRepos *user.UserRepos) error {
 	// 计算最终技术评分，包括 Followers 的加权影响
 	overallScore := totalScore * (1 + wFollowers*float64(totalFollowers))
 	userRepos.User.Score = overallScore // 将最终评分存储在 UserRepos 的 Score 字段中
-
+	log.Printf("Overall score for %s: %f\n", userRepos.User.Username, overallScore)
 	return nil
 }
 

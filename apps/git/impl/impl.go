@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/acd19ml/TalentRank/apps/git"
@@ -155,7 +156,10 @@ func (g *Service) GetBio(ctx context.Context, username *git.GetUsernameRequest) 
 	if err != nil {
 		return nil, err
 	}
-	return &git.StringResponse{Result: user.Bio}, nil
+	// 清理 user.Bio 中的非 UTF-8 字符
+	cleanedBio := cleanInvalidUTF8(user.Bio)
+
+	return &git.StringResponse{Result: cleanedBio}, nil
 }
 
 func (g *Service) GetOrganizations(ctx context.Context, req *git.GetUsernameRequest) (*git.OrgListResponse, error) {
@@ -183,6 +187,26 @@ func (g *Service) GetOrganizations(ctx context.Context, req *git.GetUsernameRequ
 	return &git.OrgListResponse{Organizations: orgsList}, nil
 }
 
+func cleanInvalidUTF8(input string) string {
+	if utf8.ValidString(input) {
+		return input
+	}
+
+	// 创建一个新的字符串，过滤掉无效的 UTF-8 字符
+	validRunes := make([]rune, 0, len(input))
+	for i, r := range input {
+		if r == utf8.RuneError {
+			_, size := utf8.DecodeRuneInString(input[i:])
+			if size == 1 {
+				log.Printf("Skipping invalid UTF-8 character at index %d", i)
+				continue // 跳过无效的 UTF-8 字符
+			}
+		}
+		validRunes = append(validRunes, r)
+	}
+	return string(validRunes)
+}
+
 func (g *Service) GetReadme(ctx context.Context, req *git.GetReadmeRequest) (*git.StringResponse, error) {
 	repos, err := g.GetRepositories(ctx, &git.GetUsernameRequest{Username: req.Username})
 	if err != nil {
@@ -208,6 +232,16 @@ func (g *Service) GetReadme(ctx context.Context, req *git.GetReadmeRequest) (*gi
 			return nil, err
 		}
 
+		// 检查和清理非 UTF-8 字符
+		content = cleanInvalidUTF8(content)
+
+		// 添加日志，调试每段内容的有效性
+		if !utf8.ValidString(content) {
+			log.Println("Warning: content still contains invalid UTF-8 characters after cleaning")
+			continue
+		}
+
+		// 截取内容到指定字符限制
 		if len(content) > int(req.CharLimit) {
 			content = content[:req.CharLimit] + "..."
 		}
@@ -218,6 +252,11 @@ func (g *Service) GetReadme(ctx context.Context, req *git.GetReadmeRequest) (*gi
 		}
 
 		contents += content
+	}
+	// 再次清理和验证整个内容
+	contents = cleanInvalidUTF8(contents)
+	if !utf8.ValidString(contents) {
+		return nil, fmt.Errorf("resulting content contains invalid UTF-8 characters")
 	}
 
 	return &git.StringResponse{Result: contents}, nil

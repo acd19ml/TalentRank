@@ -18,10 +18,10 @@ func NewHttpService() *HttpService {
 	r := gin.Default()
 
 	server := &http.Server{
-		ReadHeaderTimeout: 60 * time.Second,
-		ReadTimeout:       60 * time.Second,
-		WriteTimeout:      60 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		ReadHeaderTimeout: 5 * time.Minute,
+		ReadTimeout:       5 * time.Minute,
+		WriteTimeout:      5 * time.Minute,
+		IdleTimeout:       5 * time.Minute,
 		MaxHeaderBytes:    1 << 20, // 1M
 		Addr:              conf.C().App.HTTPAddr(),
 		Handler:           r,
