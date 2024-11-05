@@ -25,7 +25,7 @@ func (h *Handler) Registry(r gin.IRouter) {
 	r.POST("/userRepos", h.CreateUserRepos)
 	r.GET("/user", h.QueryUsers)
 	r.GET("/userRepos", h.DescribeUserRepos)
-	//r.GET("/api/locations", h.GetLocationCounts)
+	r.GET("/api/locations", h.GetLocationCounts)
 }
 
 func (h *Handler) Config() {

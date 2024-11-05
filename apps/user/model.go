@@ -190,3 +190,12 @@ func NewDescribeUserReposRequest() *DescribeUserReposRequest {
 type DescribeUserReposRequest struct {
 	Username string `json:"username"`
 }
+
+func NewGetLocationCountsRequest() *GetLocationCountsRequest {
+	return &GetLocationCountsRequest{}
+}
+
+type GetLocationCountsRequest struct {
+	CountryName string `json:"country_name"`
+	Count       int    `json:"count"`
+}

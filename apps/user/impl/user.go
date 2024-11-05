@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/acd19ml/TalentRank/apps/user"
 )
 
@@ -137,4 +138,28 @@ func (s *ServiceImpl) DescribeUserRepos(ctx context.Context, req *user.DescribeU
 	}
 
 	return result.String, nil
+}
+
+func (s *ServiceImpl) GetLocationCounts(ctx context.Context) ([]*user.GetLocationCountsRequest, error) {
+	rows, err := s.db.QueryContext(ctx, "CALL GetLocation();")
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute stored procedure: %w", err)
+	}
+	defer rows.Close()
+
+	var locationCounts []*user.GetLocationCountsRequest
+
+	for rows.Next() {
+		locationCount := user.NewGetLocationCountsRequest()
+		if err := rows.Scan(&locationCount.CountryName, &locationCount.Count); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		locationCounts = append(locationCounts, locationCount)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return locationCounts, nil
 }

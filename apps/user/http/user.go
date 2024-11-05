@@ -2,9 +2,10 @@ package http
 
 import (
 	"encoding/json"
+	"log"
+
 	"github.com/acd19ml/TalentRank/apps/user"
 	"github.com/gin-gonic/gin"
-	"log"
 )
 
 func (h *Handler) CreateUserRepos(c *gin.Context) {
@@ -63,30 +64,14 @@ func (h *Handler) DescribeUserRepos(c *gin.Context) {
 	c.JSON(200, jsonResponse)
 }
 
-//func (h *Handler) GetLocationCounts(c *gin.Context) {
-//	rows, err := h.svc.GetLocationCounts() // svc 是一个 Service 类型的字段
-//	if err != nil {
-//		fmt.Println("Error calling stored procedure:", err)
-//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
-//		return
-//	}
-//	defer rows.Close() // 确保 rows 是 *sql.Rows 类型
-//
-//	var locationCounts []LocationCount
-//	for rows.Next() {
-//		var locationCount LocationCount
-//		if err := rows.Scan(&locationCount.Location, &locationCount.Count); err != nil {
-//			fmt.Println("Error scanning row:", err)
-//			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
-//			return
-//		}
-//		locationCounts = append(locationCounts, locationCount)
-//	}
-//
-//	c.JSON(http.StatusOK, locationCounts)
-//}
-//
-//type LocationCount struct {
-//	Location string `json:"location"`
-//	Count    int    `json:"count"`
-//}
+func (h *Handler) GetLocationCounts(c *gin.Context) {
+	// 调用服务
+	req, err := h.svc.GetLocationCounts(c)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 返回结果
+	c.JSON(200, req)
+}
