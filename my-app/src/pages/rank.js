@@ -4,7 +4,7 @@ import { Table, Spin, Alert } from 'antd';
 const columns = [
     {
         title: 'Rank No',
-        dataIndex: 'rankno', // 这里可以根据你的需求调整
+        dataIndex: 'rankno',
         sorter: false,
         width: '10%',
     },
@@ -27,7 +27,7 @@ const columns = [
             { text: 'China', value: 'China' },
             { text: 'USA', value: 'USA' },
         ],
-        onFilter: (value, record) => record.location.includes(value), // 筛选逻辑
+        onFilter: (value, record) => record.location.includes(value),
         width: '15%',
     },
     {
@@ -54,16 +54,18 @@ const Rank = () => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [pagination, setPagination] = useState({ pageSize: 10, pageNumber: 1 });
+    const [pagination, setPagination] = useState({ pageSize: 10, current: 1, total: 0 });
     const [filter, setFilter] = useState({ location: null });
 
     useEffect(() => {
         const fetchData = async () => {
-            const { pageSize, pageNumber } = pagination;
+            const { pageSize, current } = pagination;
             const locationParam = filter.location ? `&location=${filter.location}` : '';
 
             try {
-                const response = await fetch(`http://localhost:8050/user?page_size=${pageSize}&page_number=${pageNumber}${locationParam}`);
+                const response = await fetch(
+                    `http://localhost:8050/user?page_size=${pageSize}&page_number=${current}${locationParam}`
+                );
                 if (!response.ok) {
                     const errorText = await response.text();
                     throw new Error(`Network response was not ok: ${errorText}`);
@@ -71,9 +73,13 @@ const Rank = () => {
                 const result = await response.json();
                 console.log("Fetched data:", result); // 打印获取的数据
 
-                // 提取 users 数组并设置数据
+                // 更新数据和分页信息
                 if (Array.isArray(result.users)) {
                     setData(result.users);
+                    setPagination((prevPagination) => ({
+                        ...prevPagination,
+                        total: result.total, // 从接口返回的总数更新
+                    }));
                 } else {
                     throw new Error("Expected an array from the API");
                 }
@@ -86,11 +92,17 @@ const Rank = () => {
         };
 
         fetchData();
-    }, [pagination, filter]); // 依赖于 pagination 和 filter
+    }, [pagination.current, pagination.pageSize, filter]); // 只在 pagination 或 filter 变化时触发
 
     const handleTableChange = (pagination, filters) => {
-        const { current: pageNumber, pageSize } = pagination;
-        setPagination({ pageSize, pageNumber });
+        const { current, pageSize } = pagination;
+
+        // 如果筛选条件没有变化则不更新
+        setPagination((prevPagination) => ({
+            ...prevPagination,
+            current,
+            pageSize,
+        }));
 
         // 更新筛选条件
         setFilter({ location: filters.location ? filters.location[0] : null });
@@ -107,9 +119,15 @@ const Rank = () => {
     return (
         <Table
             columns={columns}
-            rowKey={(record) => record.id} // 假设 id 是唯一的
+            rowKey={(record) => record.id}
             dataSource={data}
-            pagination={{ pageSize: pagination.pageSize, current: pagination.pageNumber }} // 设置分页
+            pagination={{
+                pageSize: pagination.pageSize,
+                current: pagination.current,
+                total: pagination.total,
+                showSizeChanger: true,
+                pageSizeOptions: ['10', '20', '50'],
+            }}
             onChange={handleTableChange} // 处理分页和筛选变化
         />
     );
