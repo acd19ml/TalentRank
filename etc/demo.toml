@@ -7,9 +7,14 @@ git_port = "50051"
 llm_port = "50052"
 
 
+
 [mysql]
 host = "111.229.114.251"
 port = "3306"
 username = "mydb"
 password = "12345678"
 database = "mydb"
+max_idle_time = 300
+max_life_time = 1800
+max_idle_conn = 10
+max_open_conn = 50

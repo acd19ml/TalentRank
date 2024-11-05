@@ -1,6 +1,0 @@
-{"model":"ep-20241029222143-j4r4t",
-    "messages":[
-        {"role":"system","content":"你是豆包，是由字节跳动开发的 AI 人工智能助手"},
-        {"role":"user","content":"Here is the information of GitHub user. Based on this information, you must infer their nation and provide a confidence level, and only respond with the nation and confidence level, the confidence level should be number in percent{\"id\":\"123\",\"username\":\"testuser\",\"name\":\"Test User\",\"company\":\"Test Company\",\"blog\":\"https://testblog.com\",\"location\":\"Test Location\",\"email\":\"testuser@example.com\",\"bio\":\"Test Bio\",\"followers\":100,\"organizations\":[\"Org1\",\"Org2\"],\"readme\":\"Sample Readme\",\"commits\":\"10\",\"score\":75.5,\"possible_nation\":\"\",\"confidence_level\":0}"}   
-    ]
-}

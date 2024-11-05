@@ -11,6 +11,12 @@ import (
 	"github.com/volcengine/volcengine-go-sdk/volcengine"
 )
 
+// InputData 定义输入 JSON 的结构
+type InputData struct {
+	Model    string              `json:"model"`
+	Messages []map[string]string `json:"messages"`
+}
+
 func (s *LLMServer) ProcessChatCompletion(ctx context.Context, req *llm.ChatRequest) (*llm.ChatResponse, error) {
 	// 使用 chatServiceInstance 来完成请求
 	output, err := s.processCompletion([]byte(req.InputJson))

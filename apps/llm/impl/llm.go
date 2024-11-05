@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"log"
 	"os"
 
 	"github.com/acd19ml/TalentRank/apps"
@@ -17,11 +18,18 @@ type LLMServer struct {
 }
 
 func (s *LLMServer) Config() {
+	token := os.Getenv("ARK_API_KEY")
+	if token == "" {
+		log.Fatal("ARK_API_KEY is not set")
+	}
 	s.client = arkruntime.NewClientWithApiKey(
-		os.Getenv("ARK_API_KEY"),
+		token,
 		arkruntime.WithBaseUrl("https://ark.cn-beijing.volces.com/api/v3"),
 		arkruntime.WithRegion("cn-beijing"),
 	)
+	if s.client == nil {
+		log.Fatal("ARK client is nil")
+	}
 }
 
 func (s *LLMServer) Name() string {

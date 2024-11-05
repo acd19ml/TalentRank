@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"log"
 	"os"
 	"sync"
 
@@ -25,10 +26,13 @@ type Service struct {
 
 // Config 配置服务
 func (s *Service) Config() {
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		log.Fatal("GITHUB_TOKEN is not set")
+	}
+
 	ctx := context.Background()
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: os.Getenv("GITHUB_TOKEN")},
-	)
+	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 	s.client = client

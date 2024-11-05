@@ -110,9 +110,6 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 	if userins.Username == "" {
 		return nil, errors.New("username is empty in userins")
 	}
-	if userins.Location == "" {
-		log.Println("Warning: user location is empty; this may affect downstream processing.")
-	}
 
 	var wg sync.WaitGroup
 	mu := sync.Mutex{}
@@ -323,7 +320,7 @@ func (s *ServiceImpl) ConstructUser(ctx context.Context, username string) (*user
 	errCh := make(chan error, 10) // 缓存通道，用于收集错误
 
 	// 使用 goroutine 发起并发请求
-	wg.Add(10)
+	wg.Add(9)
 
 	go func() {
 		defer wg.Done()

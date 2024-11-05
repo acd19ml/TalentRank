@@ -75,7 +75,6 @@ func NewDefaultMySQL() *MySQL {
 	}
 }
 
-// MySQL todo
 type MySQL struct {
 	Host     string `toml:"host" env:"MYSQL_HOST"`
 	Port     string `toml:"port" env:"MYSQL_PORT"`
