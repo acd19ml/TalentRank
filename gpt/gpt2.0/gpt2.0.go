@@ -8,16 +8,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/sashabaranov/go-openai"
 )
 
 func main() {
-	// 加载 .env 文件
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file")
-	}
 
 	// 获取 API 密钥
 	apiKey := os.Getenv("GPT_API")

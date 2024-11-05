@@ -15,6 +15,7 @@ require (
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
+	github.com/sashabaranov/go-openai v1.32.5
 	github.com/stretchr/testify v1.9.0
 	github.com/volcengine/volcengine-go-sdk v1.0.162
 	golang.org/x/oauth2 v0.23.0
@@ -22,11 +23,8 @@ require (
 )
 
 require (
-	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/golang/protobuf v1.5.0 // indirect
-	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/rs/cors v1.11.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 )
