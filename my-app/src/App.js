@@ -9,20 +9,18 @@ import Rank from './pages/rank';
 import Search from './pages/search';
 import Echart1 from './pages/echart1';
 import Echart2 from './pages/echart2';
-import Echart3 from './pages/echart3';// 导入 Echart1 组件
 
 const { Header, Content, Footer, Sider } = Layout;
 
 const menuItems = {
   '1': { icon: <UserOutlined />, label: 'Rank', component: <Rank />, text: '贡献分数排名' },
-  '2': { icon: <VideoCameraOutlined />, label: 'Search', component: <Search />, text: '搜索' },
+  '2': { icon: <VideoCameraOutlined />, label: 'Search', component: <Search />, text: '搜索未记录的用户' },
   '3': {
     icon: <MailOutlined />,
     label: 'echarts',
     children: [
       { key: '31', label: '地区图', component: <Echart1 />, text: 'user地区饼状图' }, // 更新为 Echart1 组件
       { key: '32', label: 'user数据', component: <Echart2 />, text: 'user数据树状图' },
-      { key: '33', label: 'Option 3', component: <Echart3 />, text: '选项 3' },
     ],
   },
 };

@@ -25,16 +25,17 @@ const (
 
 	Userquery = `
 		SELECT a.id, username, name, company, blog,
-       CASE 
-           WHEN a.location IS NULL OR a.location = '' THEN ''
-           ELSE (SELECT country_name FROM countries b WHERE a.location LIKE CONCAT('%', b.country_name, '%') LIMIT 1)
-       END AS Location,
+       COALESCE(a.location, '') AS Location,  -- 使用 COALESCE 替代 NULL 值
        email, bio, 
-       followers, organizations, round(score) score, 
+       followers, organizations, round(score) AS score, 
        possible_nation, confidence_level,
        rank() OVER (ORDER BY score DESC) AS rankno
-FROM User a 
-		LIMIT ? OFFSET ?;
+FROM User a
+JOIN countries c
+    ON a.location LIKE CONCAT('%', c.country_name, '%')
+LIMIT ? OFFSET ?;
+
+
 	`
 
 	QueryUser = `
