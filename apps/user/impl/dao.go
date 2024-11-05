@@ -113,7 +113,7 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	var wg sync.WaitGroup
 	mu := sync.Mutex{}
-	errCh := make(chan error, 10) // 用于捕获错误
+	errCh := make(chan error, 11) // 用于捕获错误
 
 	// 定义结果 map
 	starsByRepo, forksByRepo, dependentsByRepo := map[string]int32{}, map[string]int32{}, map[string]int32{}
