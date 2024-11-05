@@ -119,7 +119,7 @@ func (m *MySQL) GetDB() *sql.DB {
 // 避免driverConn结构体的内存申请和释放的一个成本
 func (m *MySQL) getDBConn() (*sql.DB, error) {
 	var err error
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8&multiStatements=true", m.UserName, m.Password, m.Host, m.Port, m.Database)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&multiStatements=true", m.UserName, m.Password, m.Host, m.Port, m.Database)
 	// 打开一个MySQL连接
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
