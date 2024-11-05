@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"github.com/acd19ml/TalentRank/apps/user"
 )
 
@@ -36,16 +35,16 @@ func (s *ServiceImpl) QueryUsers(ctx context.Context, req *user.QueryUserRequest
 	if req.Location != "" {
 		query = `
 			SELECT a.id, username, name, company, blog,
-       COALESCE(a.location, '') AS Location,  -- 使用 COALESCE 替代 NULL 值
+       location,
        email, bio, 
-       followers, organizations, round(score) AS score, 
+       followers, organizations, round(score) score, 
        possible_nation, confidence_level,
        rank() OVER (ORDER BY score DESC) AS rankno
-FROM User a
-JOIN countries c
-    ON a.location LIKE CONCAT('%', c.country_name, '%')
-WHERE c.country_name = ?
-LIMIT ? OFFSET ?;
+		FROM User a 
+	WHERE 
+    (SELECT country_name FROM countries b WHERE a.location LIKE CONCAT('%', b.country_name, '%') LIMIT 1) = ?
+
+			LIMIT ? OFFSET ?;
 
 		`
 		args = append(args, req.Location, pageSize, offset)

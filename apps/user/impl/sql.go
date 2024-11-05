@@ -25,16 +25,14 @@ const (
 
 	Userquery = `
 		SELECT a.id, username, name, company, blog,
-       COALESCE(a.location, '') AS Location,  -- 使用 COALESCE 替代 NULL 值
+       location,
        email, bio, 
-       followers, organizations, round(score) AS score, 
+       followers, organizations, round(score) score, 
        possible_nation, confidence_level,
        rank() OVER (ORDER BY score DESC) AS rankno
-FROM User a
-JOIN countries c
-    ON a.location LIKE CONCAT('%', c.country_name, '%')
-LIMIT ? OFFSET ?;
-
+FROM User a 
+		LIMIT ? OFFSET ?;
+	
 
 	`
 

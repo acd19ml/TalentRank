@@ -1,6 +1,89 @@
 import React, { useState } from 'react';
-import { Space, Input, Button, Divider, Card, Spin, Alert } from 'antd';
+import { Space, Input, Button, Divider, Table, Spin, Alert } from 'antd';
 import axios from 'axios';
+
+// 用户信息表格列配置
+const userColumns = [
+    {
+        title: 'Username',
+        dataIndex: 'username',
+        key: 'username',
+    },
+    {
+        title: 'Name',
+        dataIndex: 'name',
+        key: 'name',
+    },
+    {
+        title: 'Location',
+        dataIndex: 'location',
+        key: 'location',
+    },
+    {
+        title: 'Email',
+        dataIndex: 'email',
+        key: 'email',
+    },
+    {
+        title: 'Bio',
+        dataIndex: 'bio',
+        key: 'bio',
+    },
+    {
+        title: 'Followers',
+        dataIndex: 'followers',
+        key: 'followers',
+    },
+    {
+        title: 'Score',
+        dataIndex: 'score',
+        key: 'score',
+    },
+    {
+        title: 'Possible Nation',
+        dataIndex: 'possible_nation',
+        key: 'possible_nation',
+    },
+    {
+        title: 'Confidence Level',
+        dataIndex: 'confidence_level',
+        key: 'confidence_level',
+    },
+];
+
+// 仓库信息表格列配置
+const repoColumns = [
+    {
+        title: 'Repository',
+        dataIndex: 'repo',
+        key: 'repo',
+    },
+    {
+        title: 'Commits',
+        dataIndex: 'commits',
+        key: 'commits',
+    },
+    {
+        title: 'Forks',
+        dataIndex: 'fork',
+        key: 'fork',
+    },
+    {
+        title: 'Stars',
+        dataIndex: 'star',
+        key: 'star',
+    },
+    {
+        title: 'Line Changes',
+        dataIndex: 'line_change',
+        key: 'line_change',
+    },
+    {
+        title: 'Code Review',
+        dataIndex: 'code_review',
+        key: 'code_review',
+    },
+];
 
 const UserReposDisplay = () => {
     const [username, setUsername] = useState('');
@@ -26,9 +109,44 @@ const UserReposDisplay = () => {
         }
     };
 
+    // 用户数据表格数据源
+    const userDataSource = userData
+        ? [
+            {
+                key: '1',
+                username: userData.username,
+                name: userData.name,
+                location: userData.location || 'Not provided',
+                email: userData.email || 'Not provided',
+                bio: userData.bio || 'Not provided',
+                followers: userData.followers,
+                score: userData.score,
+                possible_nation: userData.possible_nation,
+                confidence_level: userData.confidence_level,
+            },
+        ]
+        : [];
+
+    // 仓库数据表格数据源
+    const repoDataSource = userData && userData.Repos
+        ? userData.Repos.map((repo, index) => ({
+            key: index.toString(),
+            repo: repo.repo,
+            commits: repo.commits,
+            fork: repo.fork,
+            star: repo.star,
+            line_change: repo.line_change,
+            code_review: repo.code_review,
+        }))
+        : [];
+
     return (
         <div>
-            <Space.Compact style={{ width: '100%' }}>
+            <Space.Compact
+                style={{
+                    width: '100%',
+                }}
+            >
                 <Input
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -53,34 +171,18 @@ const UserReposDisplay = () => {
                 </div>
             )}
 
-            {/* 显示返回的数据 */}
+            {/* 显示用户信息表格 */}
             {userData && !loading && !error && (
                 <div style={{ marginTop: 20 }}>
-                    <Card title="User Information" style={{ marginBottom: 20 }}>
-                        <p><strong>Username:</strong> {userData.username}</p>
-                        <p><strong>Name:</strong> {userData.name}</p>
-                        <p><strong>Location:</strong> {userData.location}</p>
-                        <p><strong>Email:</strong> {userData.email || 'Not provided'}</p>
-                        <p><strong>Bio:</strong> {userData.bio || 'Not provided'}</p>
-                        <p><strong>Followers:</strong> {userData.followers}</p>
-                        <p><strong>Score:</strong> {userData.score}</p>
-                        <p><strong>Possible Nation:</strong> {userData.possible_nation}</p>
-                        <p><strong>Confidence Level:</strong> {userData.confidence_level}</p>
-                    </Card>
+                    <h3>User Information</h3>
+                    <Table columns={userColumns} dataSource={userDataSource} pagination={false} />
 
                     <Divider />
 
-                    <h3>Repos</h3>
-                    {userData.Repos && userData.Repos.length > 0 ? (
-                        userData.Repos.map((repo) => (
-                            <Card key={repo.id} title={repo.repo} style={{ marginBottom: 20 }}>
-                                <p><strong>Commits:</strong> {repo.commits}</p>
-                                <p><strong>Forks:</strong> {repo.fork}</p>
-                                <p><strong>Stars:</strong> {repo.star}</p>
-                                <p><strong>Line Changes:</strong> {repo.line_change}</p>
-                                <p><strong>Code Review:</strong> {repo.code_review}</p>
-                            </Card>
-                        ))
+                    {/* 显示仓库信息表格 */}
+                    <h3>Repositories</h3>
+                    {repoDataSource.length > 0 ? (
+                        <Table columns={repoColumns} dataSource={repoDataSource} pagination={false} />
                     ) : (
                         <p>该用户没有仓库数据。</p>
                     )}
