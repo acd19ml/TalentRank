@@ -10,7 +10,7 @@ const Echart1 = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:8080/api/locations'); // 更新为新路由
+                const response = await fetch('http://localhost:8050/api/locations'); // 更新为新路由
                 if (!response.ok) {
                     const errorText = await response.text();
                     throw new Error(`Network response was not ok: ${errorText}`);
