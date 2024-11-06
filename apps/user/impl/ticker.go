@@ -19,10 +19,20 @@ func (s *ServiceImpl) StartWeeklyUpdate(ctx context.Context, interval time.Durat
 		select {
 		case <-ticker.C:
 			log.Println("Starting weekly update")
-			err := s.ScheduledUpdateUserRepos(ctx)
-			if err != nil {
+
+			if err := s.ScheduledUpdateUserRepos(ctx); err != nil {
 				log.Printf("Error in weekly update: %v", err)
 			}
+
+			// 调用清理函数
+			if err := s.DeleteOrphanedRepos(ctx); err != nil {
+				log.Printf("Error deleting orphaned repos: %v", err)
+			}
+
+			if err := s.RemoveDuplicateUsers(ctx); err != nil {
+				log.Printf("Error removing duplicate users: %v", err)
+			}
+
 		case <-ctx.Done():
 			log.Println("Stopping weekly update")
 			return
@@ -200,4 +210,39 @@ func HasDifferences(oldRepos, newRepos *user.UserRepos) bool {
 	}
 
 	return false
+}
+
+// DeleteOrphanedRepos 删除user_id在user表中没有匹配记录的repo记录
+func (s *ServiceImpl) DeleteOrphanedRepos(ctx context.Context) error {
+	_, err := s.Db.ExecContext(ctx, `
+		DELETE FROM repo
+		WHERE user_id NOT IN (SELECT id FROM user)
+	`)
+	if err != nil {
+		return err
+	}
+	log.Println("Successfully deleted orphaned repos")
+	return nil
+}
+
+// RemoveDuplicateUsers 删除重复的username，只保留其中一条记录
+func (s *ServiceImpl) RemoveDuplicateUsers(ctx context.Context) error {
+	_, err := s.Db.ExecContext(ctx, `
+		WITH UserDuplicates AS (
+			SELECT id,
+			       ROW_NUMBER() OVER (PARTITION BY username ORDER BY id) AS row_num
+			FROM user
+		)
+		DELETE FROM user
+		WHERE id IN (
+			SELECT id
+			FROM UserDuplicates
+			WHERE row_num > 1
+		)
+	`)
+	if err != nil {
+		return err
+	}
+	log.Println("Successfully removed duplicate users")
+	return nil
 }
