@@ -30,10 +30,8 @@ func (s *Service) Config() {
 	if token == "" {
 		log.Fatal("GITHUB_TOKEN is not set")
 	}
-
-	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
-	tc := oauth2.NewClient(ctx, ts)
+	tc := oauth2.NewClient(context.Background(), ts)
 	client := github.NewClient(tc)
 	s.client = client
 	s.oauth = &ts

@@ -10,7 +10,9 @@ import (
 	"github.com/acd19ml/TalentRank/apps/llm"
 	"github.com/acd19ml/TalentRank/apps/user"
 	"github.com/acd19ml/TalentRank/conf"
+	"github.com/acd19ml/TalentRank/middleware/server"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type ServiceImpl struct {
@@ -37,7 +39,7 @@ func (s *ServiceImpl) Config() {
 
 	// 启动定时任务
 	go func() {
-		s.StartWeeklyUpdate(context.Background(), apps.UpdateInterval)
+		s.StartWeeklyUpdate(s.NewAuthenticatedContext(), apps.UpdateInterval)
 	}()
 }
 
@@ -58,6 +60,11 @@ func (s *ServiceImpl) createGRPCConn(address string, serviceName string) *grpc.C
 		log.Fatalf("failed to connect to %s: %v", serviceName, err)
 	}
 	return conn
+}
+
+func (s *ServiceImpl) NewAuthenticatedContext() context.Context {
+	credentials := server.NewClientCredential("admin", "123456")
+	return metadata.NewOutgoingContext(context.Background(), credentials)
 }
 
 func (s *ServiceImpl) Name() string {
