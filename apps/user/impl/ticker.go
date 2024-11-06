@@ -66,12 +66,41 @@ func (s *ServiceImpl) CompareAndUpdateUserRepos(ctx context.Context, newRepos *u
 
 	// 比较新数据和数据库中的数据
 	if HasDifferences(existingRepos, newRepos) {
-		err := s.save(ctx, newRepos) // 保存新数据
+		// 删除失效的仓库
+		err := s.DeleteObsoleteRepos(ctx, existingRepos, newRepos)
+		if err != nil {
+			return fmt.Errorf("failed to delete obsolete repos: %w", err)
+		}
+
+		// 保存新数据
+		err = s.save(ctx, newRepos)
 		if err != nil {
 			return fmt.Errorf("failed to save updated repos: %w", err)
 		}
 	}
 
+	return nil
+}
+
+func (s *ServiceImpl) DeleteObsoleteRepos(ctx context.Context, oldRepos, newRepos *user.UserRepos) error {
+	// 将新数据的仓库名称存入一个集合，以便快速查找
+	newRepoMap := make(map[string]struct{})
+	for _, newRepo := range newRepos.Repos {
+		newRepoMap[newRepo.Repo] = struct{}{}
+	}
+
+	// 遍历旧数据中的仓库，删除新数据中不存在的仓库
+	for _, oldRepo := range oldRepos.Repos {
+		if _, exists := newRepoMap[oldRepo.Repo]; !exists {
+			// 如果新数据中不存在该仓库，则从数据库中删除
+			_, err := s.Db.ExecContext(ctx, "DELETE FROM repo WHERE id = ?", oldRepo.Id)
+			if err != nil {
+				log.Printf("Failed to delete obsolete repo %s: %v", oldRepo.Repo, err)
+				return fmt.Errorf("failed to delete obsolete repo: %w", err)
+			}
+			log.Printf("Deleted obsolete repo: %s", oldRepo.Repo)
+		}
+	}
 	return nil
 }
 
