@@ -31,7 +31,7 @@ const Echart1 = () => {
     const getChartData = () => {
         // 使用获取到的数据构建 ECharts 数据格式
         return data.map(item => ({
-            name: item.location, // 使用地区名称
+            name: item.country_name, // 使用地区名称
             value: item.count,   // 使用地区人数
         }));
     };

@@ -25,7 +25,6 @@ const columns = [
         dataIndex: 'location',
         filters: [
             { text: 'China', value: 'China' },
-            { text: 'USA', value: 'USA' },
         ],
         onFilter: (value, record) => record.location.includes(value),
         width: '15%',
