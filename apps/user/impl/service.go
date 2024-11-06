@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"log"
-	"time"
 
 	"github.com/acd19ml/TalentRank/apps"
 	"github.com/acd19ml/TalentRank/apps/git"
@@ -38,8 +37,6 @@ func (s *ServiceImpl) Config() {
 
 	// 启动定时任务
 	go func() {
-		time.Sleep(1 * time.Minute) // 初始延迟，等待指定时间后才开始第一次更新
-		log.Println("Starting weekly update")
 		s.StartWeeklyUpdate(context.Background(), apps.UpdateInterval)
 	}()
 }

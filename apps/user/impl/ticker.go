@@ -15,19 +15,23 @@ func (s *ServiceImpl) StartWeeklyUpdate(ctx context.Context, interval time.Durat
 	defer ticker.Stop()
 
 	for {
+		log.Println("Waiting for next update")
 		select {
 		case <-ticker.C:
+			log.Println("Starting weekly update")
 			err := s.ScheduledUpdateUserRepos(ctx)
 			if err != nil {
 				log.Printf("Error in weekly update: %v", err)
 			}
 		case <-ctx.Done():
+			log.Println("Stopping weekly update")
 			return
 		}
 	}
 }
 
 func (s *ServiceImpl) ScheduledUpdateUserRepos(ctx context.Context) error {
+	log.Println("Starting getting all usernames.")
 	users, err := s.GetAllUsernamesFromDB(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get usernames: %w", err)
@@ -84,6 +88,7 @@ func (s *ServiceImpl) GetAllUsernamesFromDB(ctx context.Context) ([]string, erro
 		if err := rows.Scan(&username); err != nil {
 			return nil, fmt.Errorf("failed to scan username: %w", err)
 		}
+		log.Printf("Found username: %s\n", username)
 		usernames = append(usernames, username)
 	}
 

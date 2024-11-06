@@ -10,10 +10,9 @@ import (
 )
 
 const (
-	Username  = "lululxvi"
-	CharLimit = 200
-	RepoLimit = 10
-	// UpdateInterval = 7 * 24 * 60 * 60
+	Username       = "lululxvi"
+	CharLimit      = 200
+	RepoLimit      = 10
 	UpdateInterval = 24 * time.Hour * 7
 )
 
