@@ -41,11 +41,12 @@ var StartCmd = &cobra.Command{
 		// 协程服务不断监听信号
 		go svc.WaitStop(ch)
 
-		// 3. 启动服务
+		// 启动grpc服务
 		svc.grpc.InitGRPC()
 		go svc.grpc.StartGit()
 		go svc.grpc.StartLlm()
 
+		// 启动HTTP服务
 		return svc.Start()
 	},
 }

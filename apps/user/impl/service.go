@@ -1,8 +1,10 @@
 package impl
 
 import (
+	"context"
 	"database/sql"
 	"log"
+	"time"
 
 	"github.com/acd19ml/TalentRank/apps"
 	"github.com/acd19ml/TalentRank/apps/git"
@@ -13,7 +15,7 @@ import (
 )
 
 type ServiceImpl struct {
-	db      *sql.DB
+	Db      *sql.DB
 	svc     git.GitServiceClient
 	llm     llm.LLMServiceClient
 	gitConn *grpc.ClientConn
@@ -24,7 +26,7 @@ var svcimpl = &ServiceImpl{}
 
 func (s *ServiceImpl) Config() {
 	// 配置数据库连接
-	s.db = conf.C().MySQL.GetDB()
+	s.Db = conf.C().MySQL.GetDB()
 
 	// 初始化 gRPC 连接
 	s.gitConn = s.createGRPCConn("localhost:50051", "Git gRPC server")
@@ -33,6 +35,13 @@ func (s *ServiceImpl) Config() {
 	// 初始化 gRPC 客户端
 	s.svc = git.NewGitServiceClient(s.gitConn)
 	s.llm = llm.NewLLMServiceClient(s.llmConn)
+
+	// 启动定时任务
+	go func() {
+		time.Sleep(1 * time.Minute) // 初始延迟，等待指定时间后才开始第一次更新
+		log.Println("Starting weekly update")
+		s.StartWeeklyUpdate(context.Background(), apps.UpdateInterval)
+	}()
 }
 
 // SetLLMClient 提供一个用于测试的 Setter 方法

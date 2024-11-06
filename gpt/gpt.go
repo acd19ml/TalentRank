@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -15,10 +16,12 @@ type OpenAIRequest struct {
 	Messages  []Message `json:"messages"`
 	MaxTokens int       `json:"max_tokens"`
 }
+
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
+
 type OpenAIResponse struct {
 	Choices []struct {
 		Message Message `json:"message"`
@@ -28,32 +31,37 @@ type OpenAIResponse struct {
 func callOpenAI(prompt string) (string, error) {
 
 	apiKey := os.Getenv("GPT_API") // 确保将API密钥存入环境变量
-	// fmt.Println("Loaded API Key:", apiKey)
+	if apiKey == "" {
+		log.Fatal("API key not found")
+	}
 	url := "https://api.openai.com/v1/chat/completions"
-	// 构造请求数据
+
+	// 使用GPT-4模型构造请求数据，并添加system消息
 	requestData := OpenAIRequest{
-		Model: "gpt-3.5-turbo", // 使用GPT-3.5-turbo模型
+		Model: "gpt-4o", // 使用GPT-4模型
 		Messages: []Message{
+			{Role: "system", Content: "You are a helpful assistant to guess the nation and confidence_level for a github user by multiple data from this user."}, // 添加system消息
 			{Role: "user", Content: prompt},
 		},
 		MaxTokens: 100, // 设置返回内容的最大字符数
 	}
+
 	// 将请求数据转换为JSON
 	jsonData, err := json.Marshal(requestData)
 	if err != nil {
 		return "", err
 	}
+
 	// 创建HTTP请求
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
 	}
+
 	// 设置请求头
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
-	// client := &http.Client{
-	// 	Timeout: 30 * time.Second, // 将超时时间设置为30秒或更长
-	// }
+
 	// 发送请求并获取响应
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
@@ -61,22 +69,26 @@ func callOpenAI(prompt string) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
+
 	// 读取响应
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
+
 	// 解析响应
 	var response OpenAIResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return "", err
 	}
+
 	// 返回模型生成的文本
 	if len(response.Choices) > 0 {
 		return response.Choices[0].Message.Content, nil
 	}
 	return "", fmt.Errorf("no response from OpenAI")
 }
+
 func main() {
 	response, err := callOpenAI(prompt + promptJson)
 	if err != nil {

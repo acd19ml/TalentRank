@@ -3,8 +3,10 @@ package impl_test
 import (
 	"context"
 	"os"
+	"regexp"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/acd19ml/TalentRank/apps/git"
 	"github.com/acd19ml/TalentRank/apps/llm"
 	"github.com/acd19ml/TalentRank/apps/user"
@@ -97,5 +99,63 @@ func TestGetOrganizations_Integration(t *testing.T) {
 	require.NotEmpty(t, resp.Organizations, "Organizations list should not be empty")
 	for _, org := range resp.Organizations {
 		t.Logf("Organization: %s", org)
+	}
+}
+
+func TestCompareAndUpdateUserRepos(t *testing.T) {
+	// 1. Mock 数据库连接
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Failed to create mock database connection: %v", err)
+	}
+	defer db.Close()
+
+	// 2. 设置 ServiceImpl 和所需的 DB 连接
+	service := &impl.ServiceImpl{Db: db}
+
+	// 模拟从数据库中获取用户数据
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM user WHERE username = ?")).
+		WithArgs("user1").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "name", "company", "blog", "location", "email", "bio", "followers", "organizations", "readme", "commits", "score", "possibleNation", "confidenceLevel"}).
+			AddRow("1", "user1", "User One", "Company A", "user1.blog", "Location A", "user1@example.com", "Bio text", 100, `["org1","org2"]`, "README text", 10, 50, "PossibleNation", "ConfidenceLevel"))
+
+	// 模拟从数据库获取用户仓库数据
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM repo WHERE user_id = ?")).
+		WithArgs("1").
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "user_id", "repo", "star", "fork", "dependent", "commits", "commits_total",
+			"issue", "issue_total", "pull_request", "pull_request_total",
+			"code_review", "code_review_total", "line_change", "line_change_total"}).
+			AddRow("1", "1", "repo1", 10, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+
+	// 模拟数据库事务的开始
+	mock.ExpectBegin()                                        // Add expectation for Begin call
+	mock.ExpectPrepare(regexp.QuoteMeta("INSERT INTO User")). // Expect Prepare statement for the INSERT INTO User query
+									ExpectExec().
+									WithArgs("1", "user1", "User One", "Company A", "user1.blog", "Location A", "user1@example.com", "Bio text", 100, `["org1","org2"]`, "README text", 10, 50, "PossibleNation", "ConfidenceLevel").
+									WillReturnResult(sqlmock.NewResult(1, 1)) // Mock the execution of the INSERT statement
+
+	mock.ExpectCommit() // Expect Commit after the insert operation
+
+	// 假设有新数据
+	newRepos := &user.UserRepos{
+		User: &user.User{
+			Username: "user1",
+			Name:     "User One",
+		},
+		Repos: []*user.Repo{
+			{Repo: "repo1", Star: 10, Fork: 5},
+		},
+	}
+
+	// 调用方法
+	err = service.CompareAndUpdateUserRepos(context.Background(), newRepos)
+	if err != nil {
+		t.Fatalf("Failed to compare and update repos: %v", err)
+	}
+
+	// 验证预期的数据库查询是否已发生
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("There were unmet expectations: %v", err)
 	}
 }
