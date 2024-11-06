@@ -11,7 +11,8 @@ import (
 )
 
 func (s *ServiceImpl) CreateUserRepos(ctx context.Context, username string) (*user.UserRepos, error) {
-	ins, err := s.constructUserRepos(ctx, username)
+	// 使用带有认证的ctx
+	ins, err := s.constructUserRepos(s.NewAuthenticatedContext(), username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct user repos: %w", err)
 	}
@@ -56,7 +57,7 @@ func (s *ServiceImpl) QueryUsers(ctx context.Context, req *user.QueryUserRequest
 	}
 
 	// 准备查询语句
-	stmt, err := s.db.PrepareContext(ctx, query)
+	stmt, err := s.Db.PrepareContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare query for users: %w", err)
 	}
@@ -104,7 +105,7 @@ func (s *ServiceImpl) QueryUsers(ctx context.Context, req *user.QueryUserRequest
 		countArgs = append(countArgs, req.Location)
 	}
 
-	err = s.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&result.Total)
+	err = s.Db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&result.Total)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get total count of users: %w", err)
 	}
@@ -114,20 +115,20 @@ func (s *ServiceImpl) QueryUsers(ctx context.Context, req *user.QueryUserRequest
 
 func (s *ServiceImpl) DescribeUserRepos(ctx context.Context, req *user.DescribeUserReposRequest) (string, error) {
 	// 设置 @result 为 NULL
-	_, err := s.db.ExecContext(ctx, "SET @result = NULL;")
+	_, err := s.Db.ExecContext(ctx, "SET @result = NULL;")
 	if err != nil {
 		return "", fmt.Errorf("failed to set result variable: %w", err)
 	}
 
 	// 调用存储过程 GetUserData
-	_, err = s.db.ExecContext(ctx, "CALL GetUserData(?, @result);", req.Username)
+	_, err = s.Db.ExecContext(ctx, "CALL GetUserData(?, @result);", req.Username)
 	if err != nil {
 		return "", fmt.Errorf("failed to execute stored procedure: %w", err)
 	}
 
 	// 获取 @result 的值
 	var result sql.NullString
-	err = s.db.QueryRowContext(ctx, "SELECT @result;").Scan(&result)
+	err = s.Db.QueryRowContext(ctx, "SELECT @result;").Scan(&result)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch result: %w", err)
 	}
@@ -141,7 +142,7 @@ func (s *ServiceImpl) DescribeUserRepos(ctx context.Context, req *user.DescribeU
 }
 
 func (s *ServiceImpl) GetLocationCounts(ctx context.Context) ([]*user.GetLocationCountsRequest, error) {
-	rows, err := s.db.QueryContext(ctx, "CALL GetLocation();")
+	rows, err := s.Db.QueryContext(ctx, "CALL GetLocation();")
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute stored procedure: %w", err)
 	}

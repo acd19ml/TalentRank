@@ -21,7 +21,7 @@ func (u *ServiceImpl) save(ctx context.Context, ins *user.UserRepos) error {
 	)
 
 	// 开启事务
-	tx, err := u.db.BeginTx(ctx, nil)
+	tx, err := u.Db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}

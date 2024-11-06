@@ -2,6 +2,7 @@ package apps
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/acd19ml/TalentRank/apps/user"
 	"github.com/gin-gonic/gin"
@@ -9,9 +10,10 @@ import (
 )
 
 const (
-	Username  = "lululxvi"
-	CharLimit = 200
-	RepoLimit = 10
+	Username       = "lululxvi"
+	CharLimit      = 200
+	RepoLimit      = 10
+	UpdateInterval = 24 * time.Hour * 7
 )
 
 var (

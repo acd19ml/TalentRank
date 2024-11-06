@@ -7,11 +7,16 @@ import (
 
 	"github.com/acd19ml/TalentRank/apps"
 	"github.com/acd19ml/TalentRank/conf"
+	"github.com/acd19ml/TalentRank/middleware/server"
 	"google.golang.org/grpc"
 )
 
 func NewGRPCGitService() *GRPCService {
-	svr := grpc.NewServer()
+	// 添加认证中间件
+	reqAuth := server.NewAuthUnaryServerInterceptor()
+	svr := grpc.NewServer(
+		grpc.UnaryInterceptor(reqAuth),
+	)
 	return &GRPCService{
 		svr: svr,
 		c:   conf.C(),
@@ -24,6 +29,7 @@ type GRPCService struct {
 }
 
 func (s *GRPCService) InitGRPC() {
+
 	// 初始化所有grpc服务
 	apps.InitGrpc(s.svr)
 

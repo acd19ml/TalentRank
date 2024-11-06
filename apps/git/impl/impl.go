@@ -136,10 +136,6 @@ func (g *Service) GetLocation(ctx context.Context, username *git.GetUsernameRequ
 	if err != nil {
 		return nil, err
 	}
-	location := user.GetLocation()
-	if location == "" {
-		log.Printf("warning: location for user %s is empty", username)
-	}
 	return &git.StringResponse{Result: user.Location}, nil
 }
 

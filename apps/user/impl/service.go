@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"context"
 	"database/sql"
 	"log"
 
@@ -9,11 +10,13 @@ import (
 	"github.com/acd19ml/TalentRank/apps/llm"
 	"github.com/acd19ml/TalentRank/apps/user"
 	"github.com/acd19ml/TalentRank/conf"
+	"github.com/acd19ml/TalentRank/middleware/server"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type ServiceImpl struct {
-	db      *sql.DB
+	Db      *sql.DB
 	svc     git.GitServiceClient
 	llm     llm.LLMServiceClient
 	gitConn *grpc.ClientConn
@@ -24,7 +27,7 @@ var svcimpl = &ServiceImpl{}
 
 func (s *ServiceImpl) Config() {
 	// 配置数据库连接
-	s.db = conf.C().MySQL.GetDB()
+	s.Db = conf.C().MySQL.GetDB()
 
 	// 初始化 gRPC 连接
 	s.gitConn = s.createGRPCConn("localhost:50051", "Git gRPC server")
@@ -33,6 +36,11 @@ func (s *ServiceImpl) Config() {
 	// 初始化 gRPC 客户端
 	s.svc = git.NewGitServiceClient(s.gitConn)
 	s.llm = llm.NewLLMServiceClient(s.llmConn)
+
+	// 启动定时任务
+	go func() {
+		s.StartWeeklyUpdate(s.NewAuthenticatedContext(), apps.UpdateInterval)
+	}()
 }
 
 // SetLLMClient 提供一个用于测试的 Setter 方法
@@ -52,6 +60,11 @@ func (s *ServiceImpl) createGRPCConn(address string, serviceName string) *grpc.C
 		log.Fatalf("failed to connect to %s: %v", serviceName, err)
 	}
 	return conn
+}
+
+func (s *ServiceImpl) NewAuthenticatedContext() context.Context {
+	credentials := server.NewClientCredential("admin", "123456")
+	return metadata.NewOutgoingContext(context.Background(), credentials)
 }
 
 func (s *ServiceImpl) Name() string {
