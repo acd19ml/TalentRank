@@ -127,14 +127,10 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 	go func() {
 		defer wg.Done()
 
-		if userins.Location == "" {
-			if err := s.InferUserLocationWithLLM(ctx, userins); err != nil {
-				errCh <- fmt.Errorf("failed to infer user location: %w", err)
-			}
-		} else {
-			userins.PossibleNation = userins.Location
-			userins.ConfidenceLevel = "100"
+		if err := s.InferUserLocationWithLLM(ctx, userins); err != nil {
+			errCh <- fmt.Errorf("failed to infer user location: %w", err)
 		}
+
 	}()
 
 	go func() {
@@ -563,6 +559,7 @@ func calculateContribution(repo *user.Repo) (float64, error) {
 }
 
 func (s *ServiceImpl) InferUserLocationWithLLM(ctx context.Context, userins *user.User) error {
+	mu := sync.Mutex{}
 	inputJSON, err := user.GetUserReposJSONWithRequestDoubao(ctx, userins)
 	if err != nil {
 		return fmt.Errorf("failed to create JSON request: %w", err)
@@ -599,12 +596,16 @@ func (s *ServiceImpl) InferUserLocationWithLLM(ctx context.Context, userins *use
 		}
 		nation, level := user.ExtractFields(resp)
 		log.Printf("GPT returned possible nation %s with confidence level %s for user %s", nation, level, userins.Username)
+		mu.Lock()
 		userins.PossibleNation = nation
 		userins.ConfidenceLevel = level
+		mu.Unlock()
 	} else {
 		log.Printf("Doubao returned possible nation %s with confidence level %s for user %s", llmResponse.PossibleNation, llmResponse.ConfidenceLevel, userins.Username)
+		mu.Lock()
 		userins.PossibleNation = llmResponse.PossibleNation
 		userins.ConfidenceLevel = llmResponse.ConfidenceLevel
+		mu.Unlock()
 	}
 
 	return nil
