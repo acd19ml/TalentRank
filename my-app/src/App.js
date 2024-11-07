@@ -15,7 +15,7 @@ import Information from './pages/Information';
 const { Header, Content, Footer, Sider } = Layout;
 
 const menuItems = {
-  '1': { icon: <UserOutlined />, label: 'Rank No', component: <Rank />, text: 'TanlentRank 排名' },
+  '1': { icon: <UserOutlined />, label: 'Rank No', component: <Rank />, text: 'TalentRank 排行' },
   '2': { icon: <SearchOutlined />, label: 'Search', component: <Search />, text: '搜索未记录的用户' },
   '4': { icon: <TagsOutlined />, label: 'Information', component: <Information />, text: 'About Us' },
   '3': {
