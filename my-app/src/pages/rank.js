@@ -1,53 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Spin, Alert, Tooltip } from 'antd';
-
-const columns = [
-    {
-        title: 'Rank No',
-        dataIndex: 'rankno',
-        sorter: false,
-        width: '10%',
-    },
-    {
-        title: 'Name',
-        dataIndex: 'name',
-        sorter: false,
-        width: '15%',
-    },
-    {
-        title: 'UserName',
-        dataIndex: 'username',
-        sorter: false,
-        width: '15%',
-    },
-    {
-        title: 'Location',
-        dataIndex: 'location',
-        filters: [
-            { text: 'China', value: 'China' },
-        ],
-        onFilter: (value, record) => record.location.includes(value),
-        width: '15%',
-    },
-    {
-        title: 'score',
-        dataIndex: 'score',
-        sorter: false,
-        width: '20%',
-    },
-    {
-        title: 'possible_nation',
-        dataIndex: 'possible_nation',
-        sorter: false,
-        width: '15%',
-    },
-    {
-        title: 'confidence_level',
-        dataIndex: 'confidence_level',
-        sorter: false,
-        width: '10%',
-    },
-];
+import { Table, Spin, Alert, Popconfirm, message } from 'antd';
 
 const Rank = () => {
     const [data, setData] = useState([]);
@@ -55,6 +7,89 @@ const Rank = () => {
     const [error, setError] = useState(null);
     const [pagination, setPagination] = useState({ pageSize: 10, current: 1, total: 0 });
     const [filter, setFilter] = useState({ location: null });
+
+    // 删除用户的函数
+    const handleDelete = async (id) => {
+        try {
+            const response = await fetch(`http://localhost:8050/userRepos:${id}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                message.success('User deleted successfully');
+                setLoading(true); // 显示 loading 状态
+                setPagination((prev) => ({
+                    ...prev,
+                    current: 1, // 删除后刷新第一页
+                }));
+            } else {
+                const errorText = await response.text();
+                throw new Error(`Failed to delete: ${errorText}`);
+            }
+        } catch (error) {
+            message.error(`Error: ${error.message}`);
+        }
+    };
+
+    const columns = [
+        {
+            title: 'Rank No',
+            dataIndex: 'rankno',
+            sorter: false,
+            width: '10%',
+        },
+        {
+            title: 'Name',
+            dataIndex: 'name',
+            sorter: false,
+            width: '15%',
+        },
+        {
+            title: 'UserName',
+            dataIndex: 'username',
+            sorter: false,
+            width: '15%',
+        },
+        {
+            title: 'Location',
+            dataIndex: 'location',
+            filters: [
+                { text: 'China', value: 'China' },
+            ],
+            onFilter: (value, record) => record.location.includes(value),
+            width: '15%',
+        },
+        {
+            title: 'score',
+            dataIndex: 'score',
+            sorter: false,
+            width: '20%',
+        },
+        {
+            title: 'possible_nation',
+            dataIndex: 'possible_nation',
+            sorter: false,
+            width: '15%',
+        },
+        {
+            title: 'confidence_level',
+            dataIndex: 'confidence_level',
+            sorter: false,
+            width: '10%',
+        },
+        {
+            title: 'operation',
+            dataIndex: 'operation',
+            render: (_, record) => (
+                <Popconfirm
+                    title="Are you sure to delete this user?"
+                    onConfirm={() => handleDelete(record.id)} // 调用删除函数
+                >
+                    <a>Delete</a>
+                </Popconfirm>
+            ),
+        },
+    ];
 
     useEffect(() => {
         const fetchData = async () => {
@@ -91,19 +126,16 @@ const Rank = () => {
         };
 
         fetchData();
-    }, [pagination.current, pagination.pageSize, filter]); // 只在 pagination 或 filter 变化时触发
+    }, [pagination.current, pagination.pageSize, filter]);
 
     const handleTableChange = (pagination, filters) => {
         const { current, pageSize } = pagination;
-
-        // 如果筛选条件没有变化则不更新
         setPagination((prevPagination) => ({
             ...prevPagination,
             current,
             pageSize,
         }));
 
-        // 更新筛选条件
         setFilter({ location: filters.location ? filters.location[0] : null });
     };
 
