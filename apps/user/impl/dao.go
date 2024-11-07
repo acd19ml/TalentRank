@@ -509,7 +509,7 @@ func calculateOverallScore(userRepos *user.UserRepos) error {
 	// 计算最终技术评分，包括 Followers 的加权影响
 	overallScore := totalScore * (1 + wFollowers*float64(totalFollowers))
 	userRepos.User.Score = overallScore // 将最终评分存储在 UserRepos 的 Score 字段中
-	log.Printf("Overall score for %s: %f\n", userRepos.User.Username, overallScore)
+	// log.Printf("Overall score for %s: %f\n", userRepos.User.Username, overallScore)
 	return nil
 }
 
@@ -563,7 +563,7 @@ func calculateContribution(repo *user.Repo) (float64, error) {
 }
 
 func (s *ServiceImpl) InferUserLocationWithLLM(ctx context.Context, userins *user.User) error {
-	inputJSON, err := user.GetUserReposJSONWithRequest(ctx, userins)
+	inputJSON, err := user.GetUserReposJSONWithRequestDoubao(ctx, userins)
 	if err != nil {
 		return fmt.Errorf("failed to create JSON request: %w", err)
 	}
@@ -585,8 +585,27 @@ func (s *ServiceImpl) InferUserLocationWithLLM(ctx context.Context, userins *use
 		return fmt.Errorf("LLM returned incomplete response: %v", llmResponse)
 	}
 
-	userins.PossibleNation = llmResponse.PossibleNation
-	userins.ConfidenceLevel = llmResponse.ConfidenceLevel
+	if llmResponse.PossibleNation == "N/A" || llmResponse.ConfidenceLevel == "0" {
+		log.Printf("Doubao returned no possible nation for user %s, falling back to GPT-4o", userins.Username)
+
+		json, err := user.GetUserReposJSONWithRequestGPT(ctx, userins)
+		if err != nil {
+			return fmt.Errorf("failed to create JSON request: %w", err)
+		}
+
+		resp, err := user.PostAnalyze(json)
+		if err != nil {
+			return fmt.Errorf("failed to call GPT service: %w", err)
+		}
+		nation, level := user.ExtractFields(resp)
+		log.Printf("GPT returned possible nation %s with confidence level %s for user %s", nation, level, userins.Username)
+		userins.PossibleNation = nation
+		userins.ConfidenceLevel = level
+	} else {
+		log.Printf("Doubao returned possible nation %s with confidence level %s for user %s", llmResponse.PossibleNation, llmResponse.ConfidenceLevel, userins.Username)
+		userins.PossibleNation = llmResponse.PossibleNation
+		userins.ConfidenceLevel = llmResponse.ConfidenceLevel
+	}
 
 	return nil
 }
