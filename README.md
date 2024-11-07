@@ -85,3 +85,6 @@ TalentRank
 ## 后端架构图
 ![service接口 (1)](https://github.com/user-attachments/assets/d0317a53-a925-4ddc-86f8-ad9ae5a32579)
 
+## demo录制
+https://github.com/user-attachments/assets/ccf2700c-4031-4431-932a-8cb6a67ab8aa
+
