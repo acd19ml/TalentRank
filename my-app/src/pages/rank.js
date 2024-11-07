@@ -6,15 +6,15 @@ const Rank = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [pagination, setPagination] = useState({ pageSize: 10, current: 1, total: 0 });
-    const [filter, setFilter] = useState({ location: null });
+    const [filter, setFilter] = useState({ possible_nation: null }); // 修改为 possible_nation
 
     const fetchData = async () => {
         const { pageSize, current } = pagination;
-        const locationParam = filter.location ? `&location=${filter.location}` : '';
+        const nationParam = filter.possible_nation ? `&possible_nation=${filter.possible_nation}` : ''; // 使用 possible_nation
 
         try {
             const response = await fetch(
-                `http://localhost:8050/user?page_size=${pageSize}&page_number=${current}${locationParam}`
+                `http://localhost:8050/user?page_size=${pageSize}&page_number=${current}${nationParam}`
             );
             if (!response.ok) {
                 const errorText = await response.text();
@@ -66,7 +66,6 @@ const Rank = () => {
         }
     };
 
-
     const columns = [
         {
             title: 'Rank No',
@@ -103,7 +102,7 @@ const Rank = () => {
             filters: [
                 { text: 'China', value: 'China' },
             ],
-            onFilter: (value, record) => record.location.includes(value),
+            onFilter: (value, record) => record.possible_nation.includes(value), // 使用 possible_nation
             sorter: false,
             width: '15%',
         },
@@ -128,19 +127,21 @@ const Rank = () => {
     ];
 
     useEffect(() => {
-
         fetchData();
     }, [pagination.current, pagination.pageSize, filter]);
 
     const handleTableChange = (pagination, filters) => {
         const { current, pageSize } = pagination;
+
+        // 更新分页信息
         setPagination((prevPagination) => ({
             ...prevPagination,
             current,
             pageSize,
         }));
 
-        setFilter({ location: filters.location ? filters.location[0] : null });
+        // 更新 filter 为 possible_nation
+        setFilter({ possible_nation: filters.possible_nation ? filters.possible_nation[0] : null });
     };
 
     if (loading) {
