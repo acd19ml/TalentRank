@@ -6,7 +6,6 @@ toolchain go1.23.2
 
 require (
 	github.com/BurntSushi/toml v1.4.0
-	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/PuerkitoBio/goquery v1.6.0
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/gin-contrib/cors v1.7.2
@@ -16,7 +15,6 @@ require (
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
-	github.com/sashabaranov/go-openai v1.32.5
 	github.com/stretchr/testify v1.9.0
 	github.com/volcengine/volcengine-go-sdk v1.0.162
 	golang.org/x/oauth2 v0.23.0
