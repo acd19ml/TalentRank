@@ -8,10 +8,43 @@ const Rank = () => {
     const [pagination, setPagination] = useState({ pageSize: 10, current: 1, total: 0 });
     const [filter, setFilter] = useState({ location: null });
 
+    const fetchData = async () => {
+        const { pageSize, current } = pagination;
+        const locationParam = filter.location ? `&location=${filter.location}` : '';
+
+        try {
+            const response = await fetch(
+                `http://localhost:8050/user?page_size=${pageSize}&page_number=${current}${locationParam}`
+            );
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Network response was not ok: ${errorText}`);
+            }
+            const result = await response.json();
+            console.log("Fetched data:", result); // 打印获取的数据
+
+            // 更新数据和分页信息
+            if (Array.isArray(result.users)) {
+                setData(result.users);
+                setPagination((prevPagination) => ({
+                    ...prevPagination,
+                    total: result.total, // 从接口返回的总数更新
+                }));
+            } else {
+                throw new Error("Expected an array from the API");
+            }
+        } catch (err) {
+            console.error("Fetch error:", err);
+            setError(err.message || "An error occurred");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // 删除用户的函数
     const handleDelete = async (id) => {
         try {
-            const response = await fetch(`http://localhost:8050/userRepos:${id}`, {
+            const response = await fetch(`http://localhost:8050/userRepos${id}`, {
                 method: 'DELETE',
             });
 
@@ -22,6 +55,8 @@ const Rank = () => {
                     ...prev,
                     current: 1, // 删除后刷新第一页
                 }));
+                // 手动触发数据重新获取
+                fetchData();
             } else {
                 const errorText = await response.text();
                 throw new Error(`Failed to delete: ${errorText}`);
@@ -30,6 +65,7 @@ const Rank = () => {
             message.error(`Error: ${error.message}`);
         }
     };
+
 
     const columns = [
         {
@@ -53,10 +89,6 @@ const Rank = () => {
         {
             title: 'Location',
             dataIndex: 'location',
-            filters: [
-                { text: 'China', value: 'China' },
-            ],
-            onFilter: (value, record) => record.location.includes(value),
             width: '15%',
         },
         {
@@ -68,6 +100,10 @@ const Rank = () => {
         {
             title: 'possible_nation',
             dataIndex: 'possible_nation',
+            filters: [
+                { text: 'China', value: 'China' },
+            ],
+            onFilter: (value, record) => record.location.includes(value),
             sorter: false,
             width: '15%',
         },
@@ -92,38 +128,6 @@ const Rank = () => {
     ];
 
     useEffect(() => {
-        const fetchData = async () => {
-            const { pageSize, current } = pagination;
-            const locationParam = filter.location ? `&location=${filter.location}` : '';
-
-            try {
-                const response = await fetch(
-                    `http://localhost:8050/user?page_size=${pageSize}&page_number=${current}${locationParam}`
-                );
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Network response was not ok: ${errorText}`);
-                }
-                const result = await response.json();
-                console.log("Fetched data:", result); // 打印获取的数据
-
-                // 更新数据和分页信息
-                if (Array.isArray(result.users)) {
-                    setData(result.users);
-                    setPagination((prevPagination) => ({
-                        ...prevPagination,
-                        total: result.total, // 从接口返回的总数更新
-                    }));
-                } else {
-                    throw new Error("Expected an array from the API");
-                }
-            } catch (err) {
-                console.error("Fetch error:", err);
-                setError(err.message || "An error occurred");
-            } finally {
-                setLoading(false);
-            }
-        };
 
         fetchData();
     }, [pagination.current, pagination.pageSize, filter]);

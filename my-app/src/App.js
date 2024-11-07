@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   UserOutlined,
-  VideoCameraOutlined,
-  MailOutlined,
+  TagsOutlined,
+  AreaChartOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, theme } from 'antd';
 import Rank from './pages/rank';
@@ -14,15 +15,15 @@ import Information from './pages/Information';
 const { Header, Content, Footer, Sider } = Layout;
 
 const menuItems = {
-  '1': { icon: <UserOutlined />, label: 'Rank', component: <Rank />, text: '贡献分数排名' },
-  '2': { icon: <VideoCameraOutlined />, label: 'Search', component: <Search />, text: '搜索未记录的用户' },
-  '4': { icon: <VideoCameraOutlined />, label: 'information', component: <Information />, text: '信息' },
+  '1': { icon: <UserOutlined />, label: 'Rank No', component: <Rank />, text: 'TanlentRank 排名' },
+  '2': { icon: <SearchOutlined />, label: 'Search', component: <Search />, text: '搜索未记录的用户' },
+  '4': { icon: <TagsOutlined />, label: 'Information', component: <Information />, text: 'About Us' },
   '3': {
-    icon: <MailOutlined />,
-    label: 'echarts',
+    icon: <AreaChartOutlined />,
+    label: 'Echarts',
     children: [
-      { key: '31', label: '地区图', component: <Echart1 />, text: 'user地区饼状图' }, // 更新为 Echart1 组件
-      { key: '32', label: 'user数据', component: <Echart2 />, text: 'user数据树状图' },
+      { key: '31', label: '地区分布图', component: <Echart1 />, text: 'user 地区分布饼状图' }, // 更新为 Echart1 组件
+      { key: '32', label: 'user 数据', component: <Echart2 />, text: 'user 数据树状图' },
     ],
   },
 };

@@ -1,13 +1,42 @@
 import React from 'react';
-import { Divider,Typography} from 'antd';
+import { Divider,Typography,List,Avatar} from 'antd';
 import { BlockMath, InlineMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
 const { Title, Paragraph, Text, Link } = Typography;
-
+const data = [
+    {
+        title: '李勐霄',
+    },
+    {
+        title: '卢鑫',
+    },
+    {
+        title: '郑锦康',
+    },
+];
 
 const Formula = () => (
-    <Typography>
-
+    <Typography style={{ textAlign: 'left' }}>
+        <Divider
+            style={{
+                borderColor: '#7cb305',
+            }}
+        >
+            developers
+        </Divider>
+        <List
+            itemLayout="horizontal"
+            dataSource={data}
+            renderItem={(item, index) => (
+                <List.Item>
+                    <List.Item.Meta
+                        avatar={<Avatar src={`https://api.dicebear.com/7.x/miniavs/svg?seed=${index}`} />}
+                        title={<a href="https://github.com/acd19ml/TalentRank">{item.title}</a>}
+                        description="A skilled developer focused on Go and cloud technologies. I work to build high-quality, scalable applications that meet user needs."
+                    />
+                </List.Item>
+            )}
+        />
         <Divider
             style={{
                 borderColor: '#7cb305',
@@ -59,7 +88,7 @@ const Formula = () => (
                 borderColor: '#7cb305',
             }}
         >
-            贡献度计算公式
+            TalentRank 计算公式
         </Divider>
         <div>
             <BlockMath>
