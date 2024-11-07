@@ -86,7 +86,7 @@ func TestGetOrganizations_Integration(t *testing.T) {
 
 	// 准备请求参数
 	ctx := context.Background()
-	req := &git.GetUsernameRequest{Username: "donghwan-shin"} // 使用有效的 GitHub 用户名
+	req := &git.GetUsernameRequest{Username: "donghwan-shin"}
 
 	// 调用待测试的 GetOrganizations 方法
 	resp, err := client.GetOrganizations(ctx, req)

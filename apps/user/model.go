@@ -199,3 +199,19 @@ type GetLocationCountsRequest struct {
 	CountryName string `json:"country_name"`
 	Count       int    `json:"count"`
 }
+
+func NewDeleteUserReposRequest() *DeleteUserReposRequest {
+	return &DeleteUserReposRequest{}
+}
+
+type DeleteUserReposRequest struct {
+	Id string `json:"id"`
+}
+
+func NewDeleteUserReposResponse() *DeleteUserReposResponse {
+	return &DeleteUserReposResponse{}
+}
+
+type DeleteUserReposResponse struct {
+	Username string `json:"username"`
+}

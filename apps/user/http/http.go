@@ -26,6 +26,7 @@ func (h *Handler) Registry(r gin.IRouter) {
 	r.GET("/user", h.QueryUsers)
 	r.GET("/userRepos", h.DescribeUserRepos)
 	r.GET("/api/locations", h.GetLocationCounts)
+	r.DELETE("/userRepos:id", h.DeleteUserRepos)
 }
 
 func (h *Handler) Config() {

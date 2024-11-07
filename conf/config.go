@@ -71,7 +71,9 @@ func NewDefaultMySQL() *MySQL {
 		Password:    "123456",
 		Database:    "demo",
 		MaxOpenConn: 200,
-		MaxIdleConn: 100,
+		MaxIdleConn: 50,
+		MaxLifeTime: 1800,
+		MaxIdleTime: 600,
 	}
 }
 

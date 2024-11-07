@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/acd19ml/TalentRank/apps/user"
 )
@@ -163,4 +164,73 @@ func (s *ServiceImpl) GetLocationCounts(ctx context.Context) ([]*user.GetLocatio
 	}
 
 	return locationCounts, nil
+}
+
+func (s *ServiceImpl) DeleteUserRepos(ctx context.Context, req *user.DeleteUserReposRequest) (*user.DeleteUserReposResponse, error) {
+	var (
+		err      error
+		ustmt    *sql.Stmt
+		rstmt    *sql.Stmt
+		qstmt    *sql.Stmt
+		username string
+	)
+	result := user.NewDeleteUserReposResponse()
+
+	// 初始化一个事务
+	tx, err := s.Db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	defer func() {
+		if err != nil {
+			err := tx.Rollback()
+			if err != nil {
+				log.Fatalf("tx rollback error, %s", err)
+			}
+		} else {
+			err := tx.Commit()
+			if err != nil {
+				log.Fatalf("tx commit error, %s", err)
+			}
+		}
+	}()
+
+	qstmt, err = tx.Prepare("SELECT username FROM user WHERE id = ?")
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare query user statement: %w", err)
+	}
+	defer qstmt.Close()
+
+	err = qstmt.QueryRow(req.Id).Scan(&username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch username for user id %s: %w", req.Id, err)
+	}
+
+	ustmt, err = tx.Prepare(DeleteUserSQL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare delete user statement: %w", err)
+	}
+	defer ustmt.Close()
+
+	_, err = ustmt.Exec(req.Id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	// 设置删除repos的语句
+	rstmt, err = tx.Prepare(DeleteReposSQL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare delete repos statement: %w", err)
+	}
+	defer rstmt.Close()
+
+	_, err = rstmt.Exec(req.Id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete repos: %w", err)
+	}
+
+	result.Username = username
+
+	return result, nil
 }

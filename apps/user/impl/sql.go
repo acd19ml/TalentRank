@@ -68,6 +68,14 @@ FROM User a
 		FROM Repo
 		WHERE user_id = ?;
 	`
+
+	DeleteReposSQL = `
+		DELETE FROM repo WHERE user_id = ?;
+	`
+
+	DeleteUserSQL = `
+		DELETE FROM user WHERE id = ?;
+	`
 )
 
 // CREATE TABLE User (

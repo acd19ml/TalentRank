@@ -75,3 +75,19 @@ func (h *Handler) GetLocationCounts(c *gin.Context) {
 	// 返回结果
 	c.JSON(200, req)
 }
+
+func (h *Handler) DeleteUserRepos(c *gin.Context) {
+	req := &user.DeleteUserReposRequest{
+		Id: c.Param("id"),
+	}
+
+	// 调用服务
+	result, err := h.svc.DeleteUserRepos(c, req)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 返回结果
+	c.JSON(200, result)
+}
