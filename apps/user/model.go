@@ -166,7 +166,7 @@ func NewQueryUserRequest() *QueryUserRequest {
 type QueryUserRequest struct {
 	PageSize       int    `json:"page_size"`
 	PageNumber     int    `json:"page_number"`
-	PossibleNation string `json: "possible_nation"`
+	PossibleNation string `json:"possible_nation"`
 }
 
 func (q *QueryUserRequest) OffSet() int64 {

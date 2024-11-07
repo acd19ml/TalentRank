@@ -10,9 +10,12 @@ import (
 )
 
 const (
-	Username       = "lululxvi"
-	CharLimit      = 200
-	RepoLimit      = 10
+	// 测试数据
+	Username  = "lululxvi"
+	CharLimit = 200
+	RepoLimit = 10
+
+	// 定时任务的时间间隔
 	UpdateInterval = 24 * time.Hour * 7
 )
 
