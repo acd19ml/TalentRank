@@ -30,27 +30,25 @@ func (s *ServiceImpl) QueryUsers(ctx context.Context, req *user.QueryUserRequest
 	offset := req.OffSet()
 	pageSize := req.GetPageSize()
 
-	// 动态构建查询语句
-	query := Userquery
+	// 构建查询语句和参数
+	var query string
 	var args []interface{}
 
 	// 如果 `location` 有值，则在查询中添加条件
-	if req.Location != "" {
+	if req.PossibleNation != "" {
 		query = `
-			SELECT a.id, username, name, company, blog,
-       location,
-       email, bio, 
-       followers, organizations, round(score) score, 
-       possible_nation, confidence_level,
-       rank() OVER (ORDER BY score DESC) AS rankno
-		FROM User a 
-	WHERE 
-    (SELECT country_name FROM countries b WHERE a.location LIKE CONCAT('%', b.country_name, '%') LIMIT 1) = ?
-
+			SELECT * FROM (
+				SELECT a.id, username, name, company, blog, location, email, bio, 
+				       followers, organizations, ROUND(score) AS score, 
+				       possible_nation, confidence_level,
+				       RANK() OVER (ORDER BY score DESC) AS rankno
+				FROM User a
+				WHERE 
+				(SELECT country_name FROM countries b WHERE a.possible_nation LIKE CONCAT('%', b.country_name, '%') LIMIT 1) = ?
+			) AS filtered_users
 			LIMIT ? OFFSET ?;
-
 		`
-		args = append(args, req.Location, pageSize, offset)
+		args = append(args, req.PossibleNation, pageSize, offset)
 	} else {
 		// `location` 为空时，直接使用基础查询语句
 		query = Userquery
@@ -97,13 +95,13 @@ func (s *ServiceImpl) QueryUsers(ctx context.Context, req *user.QueryUserRequest
 		return nil, fmt.Errorf("error during user rows iteration: %w", err)
 	}
 
-	// 查询用户总数（考虑 location 条件）
+	// 查询符合条件的用户总数
 	countQuery := "SELECT COUNT(*) FROM User"
 	var countArgs []interface{}
 
-	if req.Location != "" {
-		countQuery += " WHERE location = ?"
-		countArgs = append(countArgs, req.Location)
+	if req.PossibleNation != "" {
+		countQuery += " WHERE possible_nation = ?"
+		countArgs = append(countArgs, req.PossibleNation)
 	}
 
 	err = s.Db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&result.Total)
