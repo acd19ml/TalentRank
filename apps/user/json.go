@@ -31,7 +31,7 @@ func GetUserReposJSONWithRequestDoubao(ctx context.Context, user *User) ([]byte,
 
 	// 构造消息内容
 	request := Request{
-		Model: "ep-20241029222143-j4r4t",
+		Model: Model,
 		Messages: []Message{
 			{
 				Role:    "system",

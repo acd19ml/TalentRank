@@ -152,7 +152,7 @@ func NewQueryUserFromHTTP(r *http.Request) *QueryUserRequest {
 		req.PageNumber, _ = strconv.Atoi(pns)
 	}
 
-	req.Location = qs.Get("location")
+	req.PossibleNation = qs.Get("possible_nation")
 	return req
 }
 
@@ -164,9 +164,9 @@ func NewQueryUserRequest() *QueryUserRequest {
 }
 
 type QueryUserRequest struct {
-	PageSize   int    `json:"page_size"`
-	PageNumber int    `json:"page_number"`
-	Location   string `json:"location"`
+	PageSize       int    `json:"page_size"`
+	PageNumber     int    `json:"page_number"`
+	PossibleNation string `json:"possible_nation"`
 }
 
 func (q *QueryUserRequest) OffSet() int64 {
