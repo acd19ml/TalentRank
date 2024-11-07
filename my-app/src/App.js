@@ -9,12 +9,14 @@ import Rank from './pages/rank';
 import Search from './pages/search';
 import Echart1 from './pages/echart1';
 import Echart2 from './pages/echart2';
+import Information from './pages/Information';
 
 const { Header, Content, Footer, Sider } = Layout;
 
 const menuItems = {
   '1': { icon: <UserOutlined />, label: 'Rank', component: <Rank />, text: '贡献分数排名' },
   '2': { icon: <VideoCameraOutlined />, label: 'Search', component: <Search />, text: '搜索未记录的用户' },
+  '4': { icon: <VideoCameraOutlined />, label: 'information', component: <Information />, text: '信息' },
   '3': {
     icon: <MailOutlined />,
     label: 'echarts',

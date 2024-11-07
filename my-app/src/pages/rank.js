@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Spin, Alert } from 'antd';
+import { Table, Spin, Alert, Tooltip } from 'antd';
 
 const columns = [
     {
@@ -30,7 +30,7 @@ const columns = [
         width: '15%',
     },
     {
-        title: 'Score',
+        title: 'score',
         dataIndex: 'score',
         sorter: false,
         width: '20%',
