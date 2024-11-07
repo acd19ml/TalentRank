@@ -21,7 +21,7 @@ startf:
 
 runf: init install startf
 
-run:
+run: dep
 	go run main.go start
 
 dep: ## Get the dependencies
