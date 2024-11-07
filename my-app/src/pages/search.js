@@ -98,7 +98,7 @@ const UserReposDisplay = () => {
 
         try {
             // 发送 POST 请求，传递 JSON 数据
-            const response = await axios.post(`${config.apiBaseUrl}//userRepos`, {
+            const response = await axios.post(`${config.apiBaseUrl}/userRepos`, {
                 username: username, // 传递的 JSON 数据
             });
             setUserData(response.data); // 将返回的数据存储到state中
