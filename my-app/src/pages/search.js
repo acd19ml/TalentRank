@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Space, Input, Button, Divider, Table, Spin, Alert } from 'antd';
 import axios from 'axios';
+import config from '../conf.js';
 
 // 用户信息表格列配置
 const userColumns = [
@@ -97,7 +98,7 @@ const UserReposDisplay = () => {
 
         try {
             // 发送 POST 请求，传递 JSON 数据
-            const response = await axios.post('http://localhost:8050/userRepos', {
+            const response = await axios.post(`${config.apiBaseUrl}//userRepos`, {
                 username: username, // 传递的 JSON 数据
             });
             setUserData(response.data); // 将返回的数据存储到state中

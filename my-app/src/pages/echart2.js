@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Input, Button, Space, message } from 'antd';
 import * as echarts from 'echarts';
+import config from '../conf.js';
 
 const Echart2 = () => {
     const [inputValue, setInputValue] = useState('');
@@ -9,13 +10,13 @@ const Echart2 = () => {
         console.log(inputValue); // 在控制台打印输入的值
 
         try {
-            const response = await fetch(`http://localhost:8050/userRepos?username=${inputValue}`, {
+            const response = await fetch(`${config.apiBaseUrl}/userRepos?username=${inputValue}`, {
                 method: 'GET', // 将方法改为 GET
                 headers: {
                     'Content-Type': 'application/json',
                 },
             });
-            console.log(`http://localhost:8050/userRepos?username=${inputValue}`);
+            console.log(`${config.apiBaseUrl}/userRepos?username=${inputValue}`);
             // if (!response.ok) {
             //     throw new Error('Network response was not ok');
             // }

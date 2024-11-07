@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Spin, Alert, Popconfirm, message } from 'antd';
+import config from '../conf.js';
 
 const Rank = () => {
     const [data, setData] = useState([]);
@@ -14,7 +15,7 @@ const Rank = () => {
 
         try {
             const response = await fetch(
-                `http://localhost:8050/user?page_size=${pageSize}&page_number=${current}${nationParam}`
+                `${config.apiBaseUrl}/user?page_size=${pageSize}&page_number=${current}${nationParam}`
             );
             if (!response.ok) {
                 const errorText = await response.text();
@@ -44,7 +45,7 @@ const Rank = () => {
     // 删除用户的函数
     const handleDelete = async (id) => {
         try {
-            const response = await fetch(`http://localhost:8050/userRepos${id}`, {
+            const response = await fetch(`${config.apiBaseUrl}/userRepos${id}`, {
                 method: 'DELETE',
             });
 
