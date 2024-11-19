@@ -3,14 +3,12 @@ package impl
 import (
 	"context"
 	"database/sql"
-	"log"
 
 	"github.com/acd19ml/TalentRank/apps"
 	"github.com/acd19ml/TalentRank/apps/git"
 	"github.com/acd19ml/TalentRank/apps/llm"
 	"github.com/acd19ml/TalentRank/apps/user"
 	"github.com/acd19ml/TalentRank/conf"
-	"github.com/acd19ml/TalentRank/middleware/client"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -30,8 +28,9 @@ func (s *ServiceImpl) Config() {
 	s.Db = conf.C().MySQL.GetDB()
 
 	// 初始化 gRPC 连接
-	s.gitConn = s.createGRPCConn("localhost:50051", "Git gRPC server")
-	s.llmConn = s.createGRPCConn("localhost:50052", "LLM gRPC server")
+	s.gitConn = conf.C().GRPCPool.InitClientConn(user.GitClient)
+
+	s.llmConn = conf.C().GRPCPool.InitClientConn(user.LlmClient)
 
 	// 初始化 gRPC 客户端
 	s.svc = git.NewGitServiceClient(s.gitConn)
@@ -51,21 +50,6 @@ func (s *ServiceImpl) SetLLMClient(client llm.LLMServiceClient) {
 // SetGitClient 提供一个用于测试的 Setter 方法
 func (s *ServiceImpl) SetGitClient(client git.GitServiceClient) {
 	s.svc = client
-}
-
-// createGRPCConn 创建 gRPC 连接并返回连接对象
-func (s *ServiceImpl) createGRPCConn(address string, serviceName string) *grpc.ClientConn {
-	crendital := client.NewAuthentication("admin", "123456")
-	conn, err := grpc.DialContext(
-		context.Background(),
-		address,
-		grpc.WithInsecure(),
-		grpc.WithPerRPCCredentials(crendital),
-	)
-	if err != nil {
-		log.Fatalf("failed to connect to %s: %v", serviceName, err)
-	}
-	return conn
 }
 
 func (s *ServiceImpl) NewAuthenticatedContext() context.Context {

@@ -7,7 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/acd19ml/TalentRank/middleware/client"
 	_ "github.com/go-sql-driver/mysql"
+	"google.golang.org/grpc"
 )
 
 // 全局config实例对象,
@@ -34,16 +36,18 @@ func C() *Config {
 // 初始化一个有默认值的Config对象
 func NewDefaultConfig() *Config {
 	return &Config{
-		App:   NewDefaultApp(),
-		MySQL: NewDefaultMySQL(),
+		App:      NewDefaultApp(),
+		MySQL:    NewDefaultMySQL(),
+		GRPCPool: NewDefaultGRPCPool(),
 	}
 }
 
 // Config 应用配置
 // 通过封装为一个对象, 来与外部配置进行对接
 type Config struct {
-	App   *App   `toml:"app"`
-	MySQL *MySQL `toml:"mysql"`
+	App      *App      `toml:"app"`
+	MySQL    *MySQL    `toml:"mysql"`
+	GRPCPool *GRPCPool `toml:"grpc_pool"`
 }
 
 func NewDefaultApp() *App {
@@ -149,4 +153,91 @@ func (a *App) GitAddr() string {
 
 func (a *App) LlmAddr() string {
 	return fmt.Sprintf("%s:%s", a.Host, a.LlmPort)
+}
+
+func NewDefaultGRPCPool() *GRPCPool {
+	return &GRPCPool{
+		pools:   make(map[string]*grpc.ClientConn),
+		LlmHost: "localhost",
+		LlmPort: "00001",
+		GitHost: "localhost",
+		GitPort: "00002",
+	}
+}
+
+type GRPCPool struct {
+	mu      sync.Mutex
+	pools   map[string]*grpc.ClientConn
+	LlmHost string `toml:"llm_host" env:"LLM_HOST"`
+	LlmPort string `toml:"llm_port" env:"LLM_PORT"`
+	GitHost string `toml:"git_host" env:"GIT_HOST"`
+	GitPort string `toml:"git_port" env:"GIT_PORT"`
+}
+
+// 连接池注册
+func (p *GRPCPool) InitClientConn(client string) *grpc.ClientConn {
+	services := map[string]string{
+		"llm": fmt.Sprintf("%s:%s", p.LlmHost, p.LlmPort),
+		"git": fmt.Sprintf("%s:%s", p.GitHost, p.GitPort),
+	}
+
+	if services[client] == "" {
+		panic(fmt.Sprintf("service %s not found", client))
+	}
+	conn, err := p.GetGRPCConnection(client, services[client])
+	if err != nil {
+		panic(err)
+	}
+	return conn
+
+}
+
+// 获取 gRPC 连接，不用显式传入目标
+func (p *GRPCPool) GetGRPCConnection(serviceName string, target string) (*grpc.ClientConn, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// 如果连接已存在，直接返回
+	if conn, ok := p.pools[serviceName]; ok {
+		return conn, nil
+	}
+
+	// 否则创建新连接
+	crendital := client.NewAuthentication("admin", "123456")
+	conn, err := grpc.DialContext(
+		context.Background(),
+		target,
+		grpc.WithInsecure(),
+		grpc.WithPerRPCCredentials(crendital),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// 保存到连接池
+	p.pools[serviceName] = conn
+	return conn, nil
+}
+
+// 获取服务连接（通过服务名）
+func (p *GRPCPool) GetServiceConn(serviceName string) (*grpc.ClientConn, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	conn, ok := p.pools[serviceName]
+	if !ok {
+		return nil, fmt.Errorf("service %s not found in connection pool", serviceName)
+	}
+	return conn, nil
+}
+
+// 关闭所有连接
+func (p *GRPCPool) CloseAll() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for serviceName, conn := range p.pools {
+		conn.Close()
+		delete(p.pools, serviceName)
+	}
 }

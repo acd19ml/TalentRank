@@ -18,3 +18,9 @@ max_idle_time = 600
 max_life_time = 1800
 max_idle_conn = 50
 max_open_conn = 200
+
+[grpc_pool]
+git_host = "0.0.0.0"
+git_port = "50051"
+llm_host = "0.0.0.0"
+llm_port = "50052"
