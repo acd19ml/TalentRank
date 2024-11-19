@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"database/sql"
+	"log"
 
 	"github.com/acd19ml/TalentRank/apps"
 	"github.com/acd19ml/TalentRank/apps/git"
@@ -28,9 +29,24 @@ func (s *ServiceImpl) Config() {
 	s.Db = conf.C().MySQL.GetDB()
 
 	// 初始化 gRPC 连接
-	s.gitConn = conf.C().GRPCPool.InitClientConn(user.GitClient)
+	if err := conf.C().App.InitClientConn(); err != nil {
+		panic(err)
+	}
 
-	s.llmConn = conf.C().GRPCPool.InitClientConn(user.LlmClient)
+	// 获取 LLM 服务连接
+	llmConn, err := conf.C().App.GetServiceConn(user.LlmClient)
+	if err != nil {
+		log.Fatalf("failed to get LLM client service connection: %v", err)
+	}
+
+	// 获取 Git 服务连接
+	gitConn, err := conf.C().App.GetServiceConn(user.GitClient)
+	if err != nil {
+		log.Fatalf("failed to get Git client service connection: %v", err)
+	}
+
+	s.llmConn = llmConn
+	s.gitConn = gitConn
 
 	// 初始化 gRPC 客户端
 	s.svc = git.NewGitServiceClient(s.gitConn)

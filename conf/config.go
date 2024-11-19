@@ -36,25 +36,27 @@ func C() *Config {
 // 初始化一个有默认值的Config对象
 func NewDefaultConfig() *Config {
 	return &Config{
-		App:      NewDefaultApp(),
-		MySQL:    NewDefaultMySQL(),
-		GRPCPool: NewDefaultGRPCPool(),
+		App:   NewDefaultApp(),
+		MySQL: NewDefaultMySQL(),
 	}
 }
 
 // Config 应用配置
 // 通过封装为一个对象, 来与外部配置进行对接
 type Config struct {
-	App      *App      `toml:"app"`
-	MySQL    *MySQL    `toml:"mysql"`
-	GRPCPool *GRPCPool `toml:"grpc_pool"`
+	App   *App   `toml:"app"`
+	MySQL *MySQL `toml:"mysql"`
 }
 
 func NewDefaultApp() *App {
 	return &App{
-		Name: "demo",
-		Host: "127.0.0.1",
-		Port: "8050",
+		Name:    "demo",
+		Host:    "127.0.0.1",
+		Port:    "8050",
+		Key:     "123",
+		GitPort: "50051",
+		LlmPort: "50052",
+		pools:   make(map[string]*grpc.ClientConn),
 	}
 }
 
@@ -65,6 +67,8 @@ type App struct {
 	Key     string `toml:"key" env:"APP_KEY"`
 	GitPort string `toml:"git_port" env:"APP_GIT_PORT"`
 	LlmPort string `toml:"llm_port" env:"APP_LLM_PORT"`
+	mu      sync.Mutex
+	pools   map[string]*grpc.ClientConn
 }
 
 func NewDefaultMySQL() *MySQL {
@@ -155,50 +159,28 @@ func (a *App) LlmAddr() string {
 	return fmt.Sprintf("%s:%s", a.Host, a.LlmPort)
 }
 
-func NewDefaultGRPCPool() *GRPCPool {
-	return &GRPCPool{
-		pools:   make(map[string]*grpc.ClientConn),
-		LlmHost: "localhost",
-		LlmPort: "00001",
-		GitHost: "localhost",
-		GitPort: "00002",
-	}
-}
-
-type GRPCPool struct {
-	mu      sync.Mutex
-	pools   map[string]*grpc.ClientConn
-	LlmHost string `toml:"llm_host" env:"LLM_HOST"`
-	LlmPort string `toml:"llm_port" env:"LLM_PORT"`
-	GitHost string `toml:"git_host" env:"GIT_HOST"`
-	GitPort string `toml:"git_port" env:"GIT_PORT"`
-}
-
 // 连接池注册
-func (p *GRPCPool) InitClientConn(client string) *grpc.ClientConn {
+func (a *App) InitClientConn() error {
 	services := map[string]string{
-		"llm": fmt.Sprintf("%s:%s", p.LlmHost, p.LlmPort),
-		"git": fmt.Sprintf("%s:%s", p.GitHost, p.GitPort),
+		"llm": fmt.Sprintf("%s:%s", a.Host, a.LlmPort),
+		"git": fmt.Sprintf("%s:%s", a.Host, a.GitPort),
 	}
 
-	if services[client] == "" {
-		panic(fmt.Sprintf("service %s not found", client))
+	for name, target := range services {
+		if _, err := a.GetGRPCConnection(name, target); err != nil {
+			return fmt.Errorf("failed to initialize service %s: %w", name, err)
+		}
 	}
-	conn, err := p.GetGRPCConnection(client, services[client])
-	if err != nil {
-		panic(err)
-	}
-	return conn
-
+	return nil
 }
 
 // 获取 gRPC 连接，不用显式传入目标
-func (p *GRPCPool) GetGRPCConnection(serviceName string, target string) (*grpc.ClientConn, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (a *App) GetGRPCConnection(serviceName string, target string) (*grpc.ClientConn, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
 	// 如果连接已存在，直接返回
-	if conn, ok := p.pools[serviceName]; ok {
+	if conn, ok := a.pools[serviceName]; ok {
 		return conn, nil
 	}
 
@@ -215,16 +197,16 @@ func (p *GRPCPool) GetGRPCConnection(serviceName string, target string) (*grpc.C
 	}
 
 	// 保存到连接池
-	p.pools[serviceName] = conn
+	a.pools[serviceName] = conn
 	return conn, nil
 }
 
 // 获取服务连接（通过服务名）
-func (p *GRPCPool) GetServiceConn(serviceName string) (*grpc.ClientConn, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (a *App) GetServiceConn(serviceName string) (*grpc.ClientConn, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	conn, ok := p.pools[serviceName]
+	conn, ok := a.pools[serviceName]
 	if !ok {
 		return nil, fmt.Errorf("service %s not found in connection pool", serviceName)
 	}
@@ -232,12 +214,12 @@ func (p *GRPCPool) GetServiceConn(serviceName string) (*grpc.ClientConn, error) 
 }
 
 // 关闭所有连接
-func (p *GRPCPool) CloseAll() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (a *App) CloseAll() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	for serviceName, conn := range p.pools {
+	for serviceName, conn := range a.pools {
 		conn.Close()
-		delete(p.pools, serviceName)
+		delete(a.pools, serviceName)
 	}
 }
