@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Space, Input, Button, Divider, Table, Spin, Alert } from 'antd';
+import { Space, Input, Button, Divider, Table, Spin, Alert, Modal, message } from 'antd';
 import axios from 'axios';
+import Cookies from 'js-cookie'; // 用于操作 Cookie
 import config from '../conf.js';
 
 // 用户信息表格列配置
@@ -91,20 +92,75 @@ const UserReposDisplay = () => {
     const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [token, setToken] = useState(''); // 用于存储输入的 Token
+
+    const showModal = () => {
+        setIsModalOpen(true);
+    };
+
+    const handleOk = () => {
+        setIsModalOpen(false);
+    };
+
+    const handleCancel = () => {
+        setIsModalOpen(false);
+    };
+
+    // 提交 Token 到后端并存储到 Cookie
+    const handleSubmitToken = async () => {
+        if (!token) {
+            message.error("Token 不能为空");
+            return;
+        }
+
+        // 简单的 Token 格式检查
+        if (token.length < 40) {
+            message.error("Token 格式不正确");
+            return;
+        }
+
+        try {
+            const response = await axios.post(`${config.apiBaseUrl}/setToken`, { token });
+            if (response.data.message === "Invalid GitHub Token") {
+                message.error("无效的 GitHub Token");
+                return;
+            }
+            // Token 验证成功，存储到 Cookie
+            Cookies.set('githubToken', token, { expires: 7 }); // 保存到 Cookie，7 天过期
+            message.success("Token 设置成功");
+            setIsModalOpen(false);
+        } catch (err) {
+            console.error('Error submitting token:', err);
+            // 打印更多错误信息以调试
+            message.error('Token 无效、过期');
+        }
+    };
 
     const fetchUserData = async () => {
         setLoading(true);  // 开始加载
         setError(null);     // 清除之前的错误
 
         try {
-            // 发送 POST 请求，传递 JSON 数据
-            const response = await axios.post(`${config.apiBaseUrl}/userRepos`, {
+            const token = Cookies.get('githubToken'); // 从 Cookie 中获取 Token
+            if (!token) {
+                throw new Error("未设置 GitHub Token");
+            }
+
+            // 验证 Token 是否有效
+            const response = await axios.post(`${config.apiBaseUrl}/setToken`, { token });
+            if (response.data.message === "Invalid GitHub Token") {
+                throw new Error("无效的 GitHub Token");
+            }
+
+            // 获取用户数据
+            const userDataResponse = await axios.post(`${config.apiBaseUrl}/userRepos`, {
                 username: username, // 传递的 JSON 数据
             });
-            setUserData(response.data); // 将返回的数据存储到state中
+            setUserData(userDataResponse.data); // 将返回的数据存储到state中
         } catch (err) {
             console.error('Error fetching user data:', err);
-            setError('无法获取用户数据，请稍后再试'); // 设置错误信息
+            setError(err.message || '无法获取用户数据，请稍后再试'); // 设置错误信息
         } finally {
             setLoading(false); // 加载结束
         }
@@ -143,6 +199,18 @@ const UserReposDisplay = () => {
 
     return (
         <div>
+            <div style={{ textAlign: "left", marginBottom: 20 }}>
+                <Button type="primary" onClick={showModal}>
+                    Token
+                </Button>
+                <Modal title="Set GitHub Token" open={isModalOpen} onOk={handleSubmitToken} onCancel={handleCancel} >
+                    <Input
+                        placeholder="Enter GitHub Token"
+                        value={token}
+                        onChange={(e) => setToken(e.target.value)}
+                    />
+                </Modal>
+            </div>
             <Space.Compact
                 style={{
                     width: '100%',

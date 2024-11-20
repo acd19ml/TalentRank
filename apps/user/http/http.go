@@ -27,6 +27,8 @@ func (h *Handler) Registry(r gin.IRouter) {
 	r.GET("/userRepos", h.DescribeUserRepos)
 	r.GET("/api/locations", h.GetLocationCounts)
 	r.DELETE("/userRepos:id", h.DeleteUserRepos)
+
+	r.POST("/setToken", h.setTokenHandler)
 }
 
 func (h *Handler) Config() {

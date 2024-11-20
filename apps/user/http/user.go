@@ -3,6 +3,8 @@ package http
 import (
 	"encoding/json"
 	"log"
+	"net/http"
+	"time"
 
 	"github.com/acd19ml/TalentRank/apps/user"
 	"github.com/gin-gonic/gin"
@@ -90,4 +92,36 @@ func (h *Handler) DeleteUserRepos(c *gin.Context) {
 
 	// 返回结果
 	c.JSON(200, result)
+}
+
+func (h *Handler) setTokenHandler(c *gin.Context) {
+	var body struct {
+		Token string `json:"token"`
+	}
+	// 绑定请求的 JSON 数据到结构体
+	if err := c.BindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request"})
+		return
+	}
+
+	// 检查 Token 是否为空
+	if body.Token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Token cannot be empty"})
+		return
+	}
+
+	// 验证 Token 是否有效
+	if !user.VerifyToken(body.Token) {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid GitHub Token"})
+		return
+	}
+
+	// 调用 Service 的 Config 方法，配置 OAuth2 客户端
+	//Todo：更新环境中的 token
+
+	// 将 Token 写入 Cookie
+	c.SetCookie("githubToken", body.Token, int(7*24*time.Hour.Seconds()), "/", "", false, true)
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{"message": "Token set successfully"})
 }

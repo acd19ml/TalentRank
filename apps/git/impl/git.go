@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	_ "os"
 	"sync"
 
 	"github.com/acd19ml/TalentRank/apps"
@@ -37,6 +38,22 @@ func (s *Service) Config() {
 	s.oauth = &ts
 
 }
+
+//// Config 配置服务
+//func (s *Service) Config(token string) {
+//	if token == "" {
+//		log.Fatal("GITHUB_TOKEN is not provided")
+//	}
+//
+//	// 使用传入的 Token 配置 OAuth2 客户端
+//	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
+//	tc := oauth2.NewClient(context.Background(), ts)
+//	client := github.NewClient(tc)
+//
+//	// 将配置应用到服务实例
+//	s.client = client
+//	s.oauth = &ts
+//}
 
 func (s *Service) Name() string {
 	return git.AppName

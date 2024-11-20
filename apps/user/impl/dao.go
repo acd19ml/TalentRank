@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/acd19ml/TalentRank/apps/llm"
 	"log"
 	"sync"
 
 	"github.com/acd19ml/TalentRank/apps"
 	"github.com/acd19ml/TalentRank/apps/git"
-	"github.com/acd19ml/TalentRank/apps/llm"
 	"github.com/acd19ml/TalentRank/apps/user"
 )
 
@@ -565,7 +565,7 @@ func (s *ServiceImpl) InferUserLocationWithLLM(ctx context.Context, userins *use
 		return fmt.Errorf("failed to create JSON request: %w", err)
 	}
 
-	// 调用 gRPC 服务
+	//调用 gRPC 服务
 	req := &llm.ChatRequest{InputJson: string(inputJSON)}
 	resp, err := s.llm.ProcessChatCompletion(ctx, req)
 	if err != nil {
@@ -590,11 +590,11 @@ func (s *ServiceImpl) InferUserLocationWithLLM(ctx context.Context, userins *use
 			return fmt.Errorf("failed to create JSON request: %w", err)
 		}
 
-		resp, err := user.PostAnalyze(json)
+		resp1, err := user.PostAnalyze(json)
 		if err != nil {
 			return fmt.Errorf("failed to call GPT service: %w", err)
 		}
-		nation, level := user.ExtractFields(resp)
+		nation, level := user.ExtractFields(resp1)
 		log.Printf("GPT returned possible nation %s with confidence level %s for user %s", nation, level, userins.Username)
 		mu.Lock()
 		userins.PossibleNation = nation
