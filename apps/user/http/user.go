@@ -38,8 +38,11 @@ func (h *Handler) CreateUserRepos(c *gin.Context) {
 		return
 	}
 
-	// 返回结果
-	c.JSON(200, userRepos)
+	// 返回结果并包含 token
+	c.JSON(200, gin.H{
+		"token":     token,     // 返回 token
+		"userRepos": userRepos, // 返回用户仓库数据
+	})
 }
 
 func (h *Handler) QueryUsers(c *gin.Context) {
@@ -126,9 +129,6 @@ func (h *Handler) setTokenHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid GitHub Token"})
 		return
 	}
-
-	// 调用 Service 的 Config 方法，配置 OAuth2 客户端
-	//Todo：更新环境中的 token
 
 	// 将 Token 写入 Cookie
 	c.SetCookie("githubToken", body.Token, int(7*24*time.Hour.Seconds()), "/", "", false, true)

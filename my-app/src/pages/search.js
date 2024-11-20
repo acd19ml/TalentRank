@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Space, Input, Button, Divider, Table, Spin, Alert, Modal, message } from 'antd';
+import {Space, Input, Button, Divider, Table, Spin, Alert, Modal, message, Popconfirm, notification} from 'antd';
 import axios from 'axios';
 import Cookies from 'js-cookie'; // 用于操作 Cookie
 import config from '../conf.js';
+import { ExclamationCircleOutlined } from '@ant-design/icons';
 
 // 用户信息表格列配置
 const userColumns = [
@@ -94,16 +95,23 @@ const UserReposDisplay = () => {
     const [error, setError] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [token, setToken] = useState(''); // 用于存储输入的 Token
+    const [api, contextHolder] = notification.useNotification();
 
     const showModal = () => {
         setIsModalOpen(true);
     };
 
-    const handleOk = () => {
-        setIsModalOpen(false);
-    };
-
     const handleCancel = () => {
+        api.open({
+            message: '注意',
+            description:
+                '默认 token 在流量较高时可能会触发限速，不建议使用。为更稳定的体验，建议配置并使用您自己的 token。' ,
+            showProgress: true,
+            pauseOnHover:true,
+            icon: <ExclamationCircleOutlined style={{ color: '#faad14' }} />,
+        });
+        // 删除所有的 Cookie
+        Cookies.remove('githubToken');
         setIsModalOpen(false);
     };
 
@@ -143,21 +151,26 @@ const UserReposDisplay = () => {
 
         try {
             const token = Cookies.get('githubToken'); // 从 Cookie 中获取 Token
-            if (!token) {
-                throw new Error("未设置 GitHub Token");
+            if (token) {
+                // 验证 Token 是否有效
+                const response = await axios.post(`${config.apiBaseUrl}/setToken`, { token });
+                if (response.data.message === "Invalid GitHub Token") {
+                    throw new Error("无效的 GitHub Token");
+                }
             }
 
-            // 验证 Token 是否有效
-            const response = await axios.post(`${config.apiBaseUrl}/setToken`, { token });
-            if (response.data.message === "Invalid GitHub Token") {
-                throw new Error("无效的 GitHub Token");
-            }
+
 
             // 获取用户数据
             const userDataResponse = await axios.post(`${config.apiBaseUrl}/userRepos`, {
                 username: username, // 传递的 JSON 数据
+            },{
+                withCredentials: true, // 发送请求时携带 Cookie
             });
             setUserData(userDataResponse.data); // 将返回的数据存储到state中
+            console.log(userDataResponse.data);
+            const tokenString = String(userDataResponse.data.token);
+            console.log('从服务器返回的 token:', tokenString);
         } catch (err) {
             console.error('Error fetching user data:', err);
             setError(err.message || '无法获取用户数据，请稍后再试'); // 设置错误信息
@@ -199,15 +212,25 @@ const UserReposDisplay = () => {
 
     return (
         <div>
+            {contextHolder}
             <div style={{ textAlign: "left", marginBottom: 20 }}>
                 <Button type="primary" onClick={showModal}>
                     Token
                 </Button>
-                <Modal title="Set GitHub Token" open={isModalOpen} onOk={handleSubmitToken} onCancel={handleCancel} >
+                <Modal title="设置 Github Token" open={isModalOpen} onOk={handleSubmitToken} onCancel={handleCancel}
+                       cancelText="默认 Token" okText="Submit">
                     <Input
                         placeholder="Enter GitHub Token"
                         value={token}
                         onChange={(e) => setToken(e.target.value)}
+                    />
+                    <Alert
+                        message="隐私声明"
+                        description="我们承诺严格保护用户隐私，不保存用户输入的 token，不将其用于商业用途或分享给第三方，
+                        仅用于完成必要操作，处理后立即清除，确保数据安全与透明。"
+                        type="warning"
+                        showIcon
+                        style={{ textAlign: "left", marginTop: 10 }}
                     />
                 </Modal>
             </div>
