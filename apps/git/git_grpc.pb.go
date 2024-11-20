@@ -38,6 +38,7 @@ const (
 	GitService_GetFollowers_FullMethodName                    = "/git.GitService/GetFollowers"
 	GitService_GetReadme_FullMethodName                       = "/git.GitService/GetReadme"
 	GitService_GetCommits_FullMethodName                      = "/git.GitService/GetCommits"
+	GitService_UpdateToken_FullMethodName                     = "/git.GitService/UpdateToken"
 )
 
 // GitServiceClient is the client API for GitService service.
@@ -65,6 +66,8 @@ type GitServiceClient interface {
 	GetFollowers(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*IntResponse, error)
 	GetReadme(ctx context.Context, in *GetReadmeRequest, opts ...grpc.CallOption) (*StringResponse, error)
 	GetCommits(ctx context.Context, in *GetCommitsRequest, opts ...grpc.CallOption) (*StringResponse, error)
+	// Token
+	UpdateToken(ctx context.Context, in *TokenRequest, opts ...grpc.CallOption) (*TokenResponse, error)
 }
 
 type gitServiceClient struct {
@@ -265,6 +268,16 @@ func (c *gitServiceClient) GetCommits(ctx context.Context, in *GetCommitsRequest
 	return out, nil
 }
 
+func (c *gitServiceClient) UpdateToken(ctx context.Context, in *TokenRequest, opts ...grpc.CallOption) (*TokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TokenResponse)
+	err := c.cc.Invoke(ctx, GitService_UpdateToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GitServiceServer is the server API for GitService service.
 // All implementations must embed UnimplementedGitServiceServer
 // for forward compatibility.
@@ -290,6 +303,8 @@ type GitServiceServer interface {
 	GetFollowers(context.Context, *GetUsernameRequest) (*IntResponse, error)
 	GetReadme(context.Context, *GetReadmeRequest) (*StringResponse, error)
 	GetCommits(context.Context, *GetCommitsRequest) (*StringResponse, error)
+	// Token
+	UpdateToken(context.Context, *TokenRequest) (*TokenResponse, error)
 	mustEmbedUnimplementedGitServiceServer()
 }
 
@@ -356,6 +371,9 @@ func (UnimplementedGitServiceServer) GetReadme(context.Context, *GetReadmeReques
 }
 func (UnimplementedGitServiceServer) GetCommits(context.Context, *GetCommitsRequest) (*StringResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCommits not implemented")
+}
+func (UnimplementedGitServiceServer) UpdateToken(context.Context, *TokenRequest) (*TokenResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateToken not implemented")
 }
 func (UnimplementedGitServiceServer) mustEmbedUnimplementedGitServiceServer() {}
 func (UnimplementedGitServiceServer) testEmbeddedByValue()                    {}
@@ -720,6 +738,24 @@ func _GitService_GetCommits_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GitService_UpdateToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GitServiceServer).UpdateToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GitService_UpdateToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GitServiceServer).UpdateToken(ctx, req.(*TokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GitService_ServiceDesc is the grpc.ServiceDesc for GitService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -802,6 +838,10 @@ var GitService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCommits",
 			Handler:    _GitService_GetCommits_Handler,
+		},
+		{
+			MethodName: "UpdateToken",
+			Handler:    _GitService_UpdateToken_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

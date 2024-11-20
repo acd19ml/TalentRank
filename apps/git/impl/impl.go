@@ -22,6 +22,21 @@ var (
 	wg    sync.WaitGroup
 )
 
+func (s *Service) UpdateToken(ctx context.Context, req *git.TokenRequest) (*git.TokenResponse, error) {
+	token := req.Token
+	if token == "" {
+		token = s.defaultToken
+	}
+
+	// 使用 Token 创建独立的 client
+	client := s.getClientWithToken(token)
+
+	// 将 client 绑定到上下文
+	ctx = context.WithValue(ctx, "githubClient", client)
+
+	return &git.TokenResponse{Token: token}, nil
+}
+
 // GetRepositories gRPC 实现：获取用户所有仓库名称，使用缓存
 func (g *Service) GetRepositories(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoResponse, error) {
 
@@ -53,13 +68,20 @@ func (s *Service) initCache(ctx context.Context, username string) error {
 
 // fetchRepositories 获取用户的所有仓库名称
 func (s *Service) fetchRepositories(ctx context.Context, username string) ([]string, error) {
+
+	// 从上下文获取 GitHub Client
+	client, ok := ctx.Value("githubClient").(*github.Client)
+	if !ok || client == nil {
+		return nil, fmt.Errorf("GitHub client not found in context")
+	}
+
 	var reposList []string
 	opts := &github.RepositoryListOptions{
 		ListOptions: github.ListOptions{PerPage: 50},
 	}
 
 	for {
-		repos, resp, err := s.client.Repositories.List(ctx, username, opts)
+		repos, resp, err := client.Repositories.List(ctx, username, opts)
 		if err != nil {
 			return nil, err
 		}

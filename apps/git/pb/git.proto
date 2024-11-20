@@ -27,6 +27,9 @@ service GitService {
     rpc GetFollowers(GetUsernameRequest) returns (IntResponse);
     rpc GetReadme(GetReadmeRequest) returns (StringResponse);
     rpc GetCommits(GetCommitsRequest) returns (StringResponse);
+
+    // Token
+    rpc UpdateToken(TokenRequest) returns (TokenResponse);
 }
 
 // 请求和响应消息定义
@@ -101,4 +104,13 @@ message RepoRequest {
 
 message RepoResponse {
     repeated string repos = 1;
+}
+
+// 用户传递的token
+message TokenRequest {
+    string token = 1;
+}
+
+message TokenResponse {
+    string token = 1; // 返回最终使用的 token
 }
