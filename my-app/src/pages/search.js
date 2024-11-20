@@ -168,9 +168,6 @@ const UserReposDisplay = () => {
                 withCredentials: true, // 发送请求时携带 Cookie
             });
             setUserData(userDataResponse.data); // 将返回的数据存储到state中
-            console.log(userDataResponse.data);
-            const tokenString = String(userDataResponse.data.token);
-            console.log('从服务器返回的 token:', tokenString);
         } catch (err) {
             console.error('Error fetching user data:', err);
             setError(err.message || '无法获取用户数据，请稍后再试'); // 设置错误信息

@@ -38,11 +38,8 @@ func (h *Handler) CreateUserRepos(c *gin.Context) {
 		return
 	}
 
-	// 返回结果并包含 token
-	c.JSON(200, gin.H{
-		"token":     token,     // 返回 token
-		"userRepos": userRepos, // 返回用户仓库数据
-	})
+	// 返回结果
+	c.JSON(200, userRepos)
 }
 
 func (h *Handler) QueryUsers(c *gin.Context) {
