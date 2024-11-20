@@ -2,7 +2,6 @@ package impl
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	_ "os"
@@ -19,11 +18,10 @@ var svr = &Service{}
 
 type Service struct {
 	git.UnimplementedGitServiceServer
-	client        *github.Client
+	// client        *github.Client
 	reposCache    []string   // 缓存仓库列表
 	cacheUsername string     // 缓存中保存的用户名
 	cacheMutex    sync.Mutex // 用于同步缓存访问
-	defaultToken  string
 }
 
 // Config 配置服务
@@ -32,7 +30,7 @@ func (s *Service) Config() {
 	if token == "" {
 		log.Fatal("GITHUB_TOKEN is not set")
 	}
-	s.client = s.getClientWithToken(token)
+	// s.client = s.GetClientWithToken(token)
 
 }
 
@@ -60,19 +58,20 @@ func (s *Service) Registry(server *grpc.Server) {
 	git.RegisterGitServiceServer(server, svr)
 }
 
-func (s *Service) getClientWithToken(token string) *github.Client {
+func (s *Service) GetClientWithToken(token string) *github.Client {
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	tc := oauth2.NewClient(context.Background(), ts)
 	return github.NewClient(tc)
 }
 
-// 获取 client 时使用上下文传递
-func (s *Service) getClientFromContext(ctx context.Context) (*github.Client, error) {
-	client, ok := ctx.Value("githubClient").(*github.Client)
-	if !ok || client == nil {
-		return nil, fmt.Errorf("GitHub client not found in context")
+// 获取 client 时使用上下文token
+func (s *Service) getClientFromContext(ctx context.Context) *github.Client {
+	token, ok := ctx.Value("githubToken").(string)
+	if !ok || token == "" {
+		defaultToken := os.Getenv("GITHUB_TOKEN")
+		return s.GetClientWithToken(defaultToken)
 	}
-	return client, nil
+	return s.GetClientWithToken(token)
 }
 
 func init() {

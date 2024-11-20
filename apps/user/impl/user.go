@@ -13,7 +13,7 @@ import (
 
 func (s *ServiceImpl) CreateUserRepos(ctx context.Context, username string) (*user.UserRepos, error) {
 	// 使用带有认证的ctx
-	ins, err := s.constructUserRepos(s.NewAuthenticatedContext(), username)
+	ins, err := s.constructUserRepos(s.NewAuthenticatedContext(ctx), username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct user repos: %w", err)
 	}

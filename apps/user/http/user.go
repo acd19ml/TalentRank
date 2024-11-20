@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/acd19ml/TalentRank/apps/user"
@@ -11,6 +12,16 @@ import (
 )
 
 func (h *Handler) CreateUserRepos(c *gin.Context) {
+
+	// 从 Cookie 中获取 Token
+	token, err := c.Cookie("githubToken")
+	if err != nil {
+		token = os.Getenv("GITHUB_TOKEN") // 如果没有 Cookie，使用默认的环境变量
+	}
+
+	// 将 client 保存到上下文中
+	c.Set("githubToken", token)
+
 	ins := user.NewCreateUserReposRequest()
 	log.Println("Received POST request to create UserRepos")
 	// 用户传递过来的参数进行解析, 实现了一个json 的unmarshal

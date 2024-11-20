@@ -22,29 +22,14 @@ var (
 	wg    sync.WaitGroup
 )
 
-func (s *Service) UpdateToken(ctx context.Context, req *git.TokenRequest) (*git.TokenResponse, error) {
-	token := req.Token
-	if token == "" {
-		token = s.defaultToken
-	}
-
-	// 使用 Token 创建独立的 client
-	client := s.getClientWithToken(token)
-
-	// 将 client 绑定到上下文
-	ctx = context.WithValue(ctx, "githubClient", client)
-
-	return &git.TokenResponse{Token: token}, nil
-}
-
 // GetRepositories gRPC 实现：获取用户所有仓库名称，使用缓存
-func (g *Service) GetRepositories(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoResponse, error) {
+func (s *Service) GetRepositories(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoResponse, error) {
 
-	if err := g.initCache(ctx, req.Username); err != nil {
+	if err := s.initCache(ctx, req.Username); err != nil {
 		return nil, err
 	}
 
-	return &git.RepoResponse{Repos: g.reposCache}, nil
+	return &git.RepoResponse{Repos: s.reposCache}, nil
 }
 
 func (s *Service) initCache(ctx context.Context, username string) error {
@@ -69,11 +54,7 @@ func (s *Service) initCache(ctx context.Context, username string) error {
 // fetchRepositories 获取用户的所有仓库名称
 func (s *Service) fetchRepositories(ctx context.Context, username string) ([]string, error) {
 
-	// 从上下文获取 GitHub Client
-	client, ok := ctx.Value("githubClient").(*github.Client)
-	if !ok || client == nil {
-		return nil, fmt.Errorf("GitHub client not found in context")
-	}
+	client := s.getClientFromContext(ctx)
 
 	var reposList []string
 	opts := &github.RepositoryListOptions{
@@ -107,7 +88,8 @@ func (s *Service) fetchRepositories(ctx context.Context, username string) ([]str
 
 // checkIfUserIsContributor 检查用户是否为仓库的贡献者
 func (s *Service) checkIfUserIsContributor(ctx context.Context, username, owner, repo string) (bool, error) {
-	contributors, _, err := s.client.Repositories.ListContributors(ctx, owner, repo, nil)
+	client := s.getClientFromContext(ctx)
+	contributors, _, err := client.Repositories.ListContributors(ctx, owner, repo, nil)
 	if err != nil {
 		return false, fmt.Errorf("failed to list contributors: %v", err)
 	}
@@ -121,8 +103,9 @@ func (s *Service) checkIfUserIsContributor(ctx context.Context, username, owner,
 	return false, nil
 }
 
-func (g *Service) GetUser(ctx context.Context, req *git.GetUsernameRequest) (*git.UserResponse, error) {
-	user, _, err := g.client.Users.Get(ctx, req.Username)
+func (s *Service) GetUser(ctx context.Context, req *git.GetUsernameRequest) (*git.UserResponse, error) {
+	client := s.getClientFromContext(ctx)
+	user, _, err := client.Users.Get(ctx, req.Username)
 	if err != nil {
 		return nil, err
 	}
@@ -137,40 +120,40 @@ func (g *Service) GetUser(ctx context.Context, req *git.GetUsernameRequest) (*gi
 	}, nil
 }
 
-func (g *Service) GetName(ctx context.Context, req *git.GetUsernameRequest) (*git.StringResponse, error) {
-	user, err := g.GetUser(ctx, req)
+func (s *Service) GetName(ctx context.Context, req *git.GetUsernameRequest) (*git.StringResponse, error) {
+	user, err := s.GetUser(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 	return &git.StringResponse{Result: user.Name}, nil
 }
 
-func (g *Service) GetCompany(ctx context.Context, username *git.GetUsernameRequest) (*git.StringResponse, error) {
-	user, err := g.GetUser(ctx, username)
+func (s *Service) GetCompany(ctx context.Context, username *git.GetUsernameRequest) (*git.StringResponse, error) {
+	user, err := s.GetUser(ctx, username)
 	if err != nil {
 		return nil, err
 	}
 	return &git.StringResponse{Result: user.Company}, nil
 }
 
-func (g *Service) GetLocation(ctx context.Context, username *git.GetUsernameRequest) (*git.StringResponse, error) {
-	user, err := g.GetUser(ctx, username)
+func (s *Service) GetLocation(ctx context.Context, username *git.GetUsernameRequest) (*git.StringResponse, error) {
+	user, err := s.GetUser(ctx, username)
 	if err != nil {
 		return nil, err
 	}
 	return &git.StringResponse{Result: user.Location}, nil
 }
 
-func (g *Service) GetEmail(ctx context.Context, username *git.GetUsernameRequest) (*git.StringResponse, error) {
-	user, err := g.GetUser(ctx, username)
+func (s *Service) GetEmail(ctx context.Context, username *git.GetUsernameRequest) (*git.StringResponse, error) {
+	user, err := s.GetUser(ctx, username)
 	if err != nil {
 		return nil, err
 	}
 	return &git.StringResponse{Result: user.Email}, nil
 }
 
-func (g *Service) GetBio(ctx context.Context, username *git.GetUsernameRequest) (*git.StringResponse, error) {
-	user, err := g.GetUser(ctx, username)
+func (s *Service) GetBio(ctx context.Context, username *git.GetUsernameRequest) (*git.StringResponse, error) {
+	user, err := s.GetUser(ctx, username)
 	if err != nil {
 		return nil, err
 	}
@@ -180,13 +163,14 @@ func (g *Service) GetBio(ctx context.Context, username *git.GetUsernameRequest) 
 	return &git.StringResponse{Result: cleanedBio}, nil
 }
 
-func (g *Service) GetOrganizations(ctx context.Context, req *git.GetUsernameRequest) (*git.OrgListResponse, error) {
+func (s *Service) GetOrganizations(ctx context.Context, req *git.GetUsernameRequest) (*git.OrgListResponse, error) {
 	var orgsList []string
 	opts := &github.ListOptions{PerPage: 50} // 设置分页参数
 
+	client := s.getClientFromContext(ctx)
 	// 获取所有组织
 	for {
-		orgs, resp, err := g.client.Organizations.List(ctx, req.Username, opts)
+		orgs, resp, err := client.Organizations.List(ctx, req.Username, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -225,8 +209,9 @@ func cleanInvalidUTF8(input string) string {
 	return string(validRunes)
 }
 
-func (g *Service) GetReadme(ctx context.Context, req *git.GetReadmeRequest) (*git.StringResponse, error) {
-	repos, err := g.GetRepositories(ctx, &git.GetUsernameRequest{Username: req.Username})
+func (s *Service) GetReadme(ctx context.Context, req *git.GetReadmeRequest) (*git.StringResponse, error) {
+	client := s.getClientFromContext(ctx)
+	repos, err := s.GetRepositories(ctx, &git.GetUsernameRequest{Username: req.Username})
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +222,7 @@ func (g *Service) GetReadme(ctx context.Context, req *git.GetReadmeRequest) (*gi
 			break
 		}
 
-		readme, _, err := g.client.Repositories.GetReadme(ctx, req.Username, repo, nil)
+		readme, _, err := client.Repositories.GetReadme(ctx, req.Username, repo, nil)
 		if err != nil {
 			if githubErr, ok := err.(*github.ErrorResponse); ok && githubErr.Response.StatusCode == 404 {
 				continue
@@ -280,8 +265,9 @@ func (g *Service) GetReadme(ctx context.Context, req *git.GetReadmeRequest) (*gi
 	return &git.StringResponse{Result: contents}, nil
 }
 
-func (g *Service) GetCommits(ctx context.Context, req *git.GetCommitsRequest) (*git.StringResponse, error) {
-	repos, err := g.GetRepositories(ctx, &git.GetUsernameRequest{Username: req.Username})
+func (s *Service) GetCommits(ctx context.Context, req *git.GetCommitsRequest) (*git.StringResponse, error) {
+	client := s.getClientFromContext(ctx)
+	repos, err := s.GetRepositories(ctx, &git.GetUsernameRequest{Username: req.Username})
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +289,7 @@ func (g *Service) GetCommits(ctx context.Context, req *git.GetCommitsRequest) (*
 
 		// 尝试三次请求
 		for attempt := 1; attempt <= 3; attempt++ {
-			commits, _, err = g.client.Repositories.ListCommits(ctx, req.Username, repo, opts)
+			commits, _, err = client.Repositories.ListCommits(ctx, req.Username, repo, opts)
 			if err == nil {
 				lastErr = nil
 				break
@@ -340,8 +326,8 @@ func (g *Service) GetCommits(ctx context.Context, req *git.GetCommitsRequest) (*
 	return &git.StringResponse{Result: allCommits}, nil
 }
 
-func (g *Service) GetFollowers(ctx context.Context, req *git.GetUsernameRequest) (*git.IntResponse, error) {
-	user, err := g.GetUser(ctx, req)
+func (s *Service) GetFollowers(ctx context.Context, req *git.GetUsernameRequest) (*git.IntResponse, error) {
+	user, err := s.GetUser(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -349,9 +335,10 @@ func (g *Service) GetFollowers(ctx context.Context, req *git.GetUsernameRequest)
 
 }
 
-func (g *Service) GetRepoStars(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
+func (s *Service) GetRepoStars(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
+	client := s.getClientFromContext(ctx)
 	// 获取指定仓库的信息
-	repo, _, err := g.client.Repositories.Get(ctx, req.Owner, req.RepoName)
+	repo, _, err := client.Repositories.Get(ctx, req.Owner, req.RepoName)
 	if err != nil {
 		return nil, err
 	}
@@ -361,9 +348,10 @@ func (g *Service) GetRepoStars(ctx context.Context, req *git.RepoRequest) (*git.
 }
 
 // 返回单个fork数量
-func (g *Service) GetRepoForks(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
+func (s *Service) GetRepoForks(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
+	client := s.getClientFromContext(ctx)
 	// 获取指定仓库的信息
-	repo, _, err := g.client.Repositories.Get(ctx, req.Owner, req.RepoName)
+	repo, _, err := client.Repositories.Get(ctx, req.Owner, req.RepoName)
 	if err != nil {
 		return nil, err
 	}
@@ -372,12 +360,12 @@ func (g *Service) GetRepoForks(ctx context.Context, req *git.RepoRequest) (*git.
 	return &git.IntResponse{Result: int32(repo.GetForksCount())}, nil
 }
 
-func (g *Service) GetStarsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetStarsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
 	// 初始化一个 map，用于存储仓库名和 stars 数量
 	repoStarsMap := make(map[string]int32)
 
 	// 获取该用户的所有仓库名称
-	repos, err := g.GetRepositories(ctx, req)
+	repos, err := s.GetRepositories(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -389,7 +377,7 @@ func (g *Service) GetStarsByRepo(ctx context.Context, req *git.GetUsernameReques
 			defer wg.Done()
 
 			// 调用 GetRepoStars 获取当前仓库的 star 数量
-			starsResp, err := g.GetRepoStars(ctx, &git.RepoRequest{Owner: req.Username, RepoName: repo})
+			starsResp, err := s.GetRepoStars(ctx, &git.RepoRequest{Owner: req.Username, RepoName: repo})
 			if err != nil {
 				return // 跳过出错的仓库
 			}
@@ -408,10 +396,10 @@ func (g *Service) GetStarsByRepo(ctx context.Context, req *git.GetUsernameReques
 }
 
 // GetForksByRepo 获取指定用户的所有仓库 fork 数量
-func (g *Service) GetForksByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetForksByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
 	repoForksMap := make(map[string]int32)
 
-	repos, err := g.GetRepositories(ctx, req)
+	repos, err := s.GetRepositories(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -420,7 +408,7 @@ func (g *Service) GetForksByRepo(ctx context.Context, req *git.GetUsernameReques
 		wg.Add(1)
 		go func(repo string) {
 			defer wg.Done()
-			forksResp, err := g.GetRepoForks(ctx, &git.RepoRequest{Owner: req.Username, RepoName: repo})
+			forksResp, err := s.GetRepoForks(ctx, &git.RepoRequest{Owner: req.Username, RepoName: repo})
 			if err != nil {
 				return
 			}
@@ -435,10 +423,10 @@ func (g *Service) GetForksByRepo(ctx context.Context, req *git.GetUsernameReques
 }
 
 // GetTotalCommitsByRepo 获取指定用户的所有仓库的提交总数
-func (g *Service) GetTotalCommitsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetTotalCommitsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
 	repoCommitsCount := make(map[string]int32)
 
-	repos, err := g.GetRepositories(ctx, req)
+	repos, err := s.GetRepositories(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repositories for user %s: %w", req.Username, err)
 	}
@@ -486,10 +474,11 @@ func (g *Service) GetTotalCommitsByRepo(ctx context.Context, req *git.GetUsernam
 }
 
 // GetUserCommitsByRepo 获取指定用户在所有仓库中的提交数量
-func (g *Service) GetUserCommitsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetUserCommitsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+	client := s.getClientFromContext(ctx)
 	userCommitsCount := make(map[string]int32)
 
-	repos, err := g.GetRepositories(ctx, req)
+	repos, err := s.GetRepositories(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repositories for user %s: %w", req.Username, err)
 	}
@@ -506,7 +495,7 @@ func (g *Service) GetUserCommitsByRepo(ctx context.Context, req *git.GetUsername
 
 			var userCommits int32
 			for {
-				commits, resp, err := g.client.Repositories.ListCommits(ctx, req.Username, repo, opts)
+				commits, resp, err := client.Repositories.ListCommits(ctx, req.Username, repo, opts)
 				if err != nil {
 					log.Printf("failed to get commits for repo %s by user %s: %v", repo, req.Username, err)
 					return
@@ -529,10 +518,11 @@ func (g *Service) GetUserCommitsByRepo(ctx context.Context, req *git.GetUsername
 }
 
 // GetTotalIssuesByRepo 获取指定用户的所有仓库的总 issues 数量
-func (g *Service) GetTotalIssuesByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetTotalIssuesByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+	client := s.getClientFromContext(ctx)
 	issuesCount := make(map[string]int32)
 
-	repos, err := g.GetRepositories(ctx, req)
+	repos, err := s.GetRepositories(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repositories for user %s: %w", req.Username, err)
 	}
@@ -549,7 +539,7 @@ func (g *Service) GetTotalIssuesByRepo(ctx context.Context, req *git.GetUsername
 
 			var totalIssues int32
 			for {
-				issues, resp, err := g.client.Issues.ListByRepo(ctx, req.Username, repo, opts)
+				issues, resp, err := client.Issues.ListByRepo(ctx, req.Username, repo, opts)
 				if err != nil {
 					return
 				}
@@ -571,10 +561,11 @@ func (g *Service) GetTotalIssuesByRepo(ctx context.Context, req *git.GetUsername
 }
 
 // GetUserSolvedIssuesByRepo 获取指定用户解决的所有仓库的 issues 数量
-func (g *Service) GetUserSolvedIssuesByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetUserSolvedIssuesByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+	client := s.getClientFromContext(ctx)
 	userIssuesCount := make(map[string]int32)
 
-	repos, err := g.GetRepositories(ctx, req)
+	repos, err := s.GetRepositories(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repositories: %w", err)
 	}
@@ -590,7 +581,7 @@ func (g *Service) GetUserSolvedIssuesByRepo(ctx context.Context, req *git.GetUse
 			}
 			userIssues := int32(0)
 			for {
-				issues, resp, err := g.client.Issues.ListByRepo(ctx, req.Username, repo, opts)
+				issues, resp, err := client.Issues.ListByRepo(ctx, req.Username, repo, opts)
 				if err != nil {
 					return
 				}
@@ -616,10 +607,11 @@ func (g *Service) GetUserSolvedIssuesByRepo(ctx context.Context, req *git.GetUse
 }
 
 // GetTotalPullRequestsByRepo 获取指定用户所有仓库的总 PR 数量
-func (g *Service) GetTotalPullRequestsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetTotalPullRequestsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+	client := s.getClientFromContext(ctx)
 	prCount := make(map[string]int32)
 
-	repos, err := g.GetRepositories(ctx, req)
+	repos, err := s.GetRepositories(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repositories: %w", err)
 	}
@@ -635,7 +627,7 @@ func (g *Service) GetTotalPullRequestsByRepo(ctx context.Context, req *git.GetUs
 			}
 			totalPRs := int32(0)
 			for {
-				prs, resp, err := g.client.PullRequests.List(ctx, req.Username, repo, opts)
+				prs, resp, err := client.PullRequests.List(ctx, req.Username, repo, opts)
 				if err != nil {
 					return
 				}
@@ -657,10 +649,11 @@ func (g *Service) GetTotalPullRequestsByRepo(ctx context.Context, req *git.GetUs
 }
 
 // GetUserMergedPullRequestsByRepo 获取指定用户合并的所有仓库的 PR 数量
-func (g *Service) GetUserMergedPullRequestsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetUserMergedPullRequestsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+	client := s.getClientFromContext(ctx)
 	userPRCount := make(map[string]int32)
 
-	repos, err := g.GetRepositories(ctx, req)
+	repos, err := s.GetRepositories(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repositories: %w", err)
 	}
@@ -676,7 +669,7 @@ func (g *Service) GetUserMergedPullRequestsByRepo(ctx context.Context, req *git.
 			}
 			userPRs := int32(0)
 			for {
-				prs, resp, err := g.client.PullRequests.List(ctx, req.Username, repo, opts)
+				prs, resp, err := client.PullRequests.List(ctx, req.Username, repo, opts)
 				if err != nil {
 					return
 				}
@@ -702,8 +695,9 @@ func (g *Service) GetUserMergedPullRequestsByRepo(ctx context.Context, req *git.
 }
 
 // GetTotalCodeReviewsByRepo 获取每个仓库的代码审查总数
-func (g *Service) GetTotalCodeReviewsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
-	repos, err := g.GetRepositories(ctx, req)
+func (s *Service) GetTotalCodeReviewsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+	client := s.getClientFromContext(ctx)
+	repos, err := s.GetRepositories(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repositories for user %s: %w", req.Username, err)
 	}
@@ -721,13 +715,13 @@ func (g *Service) GetTotalCodeReviewsByRepo(ctx context.Context, req *git.GetUse
 			totalReviews := int32(0)
 
 			for {
-				pullRequests, resp, err := g.client.PullRequests.List(ctx, req.Username, repo, opts)
+				pullRequests, resp, err := client.PullRequests.List(ctx, req.Username, repo, opts)
 				if err != nil {
 					return
 				}
 
 				for _, pr := range pullRequests {
-					reviews, _, err := g.client.PullRequests.ListReviews(ctx, req.Username, repo, pr.GetNumber(), nil)
+					reviews, _, err := client.PullRequests.ListReviews(ctx, req.Username, repo, pr.GetNumber(), nil)
 					if err != nil {
 						return
 					}
@@ -751,8 +745,9 @@ func (g *Service) GetTotalCodeReviewsByRepo(ctx context.Context, req *git.GetUse
 }
 
 // GetUserCodeReviewsByRepo 获取用户在每个仓库中的代码审查数量
-func (g *Service) GetUserCodeReviewsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
-	repos, err := g.GetRepositories(ctx, req)
+func (s *Service) GetUserCodeReviewsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+	client := s.getClientFromContext(ctx)
+	repos, err := s.GetRepositories(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repositories for user %s: %w", req.Username, err)
 	}
@@ -770,13 +765,13 @@ func (g *Service) GetUserCodeReviewsByRepo(ctx context.Context, req *git.GetUser
 			userReviews := int32(0)
 
 			for {
-				pullRequests, resp, err := g.client.PullRequests.List(ctx, req.Username, repo, opts)
+				pullRequests, resp, err := client.PullRequests.List(ctx, req.Username, repo, opts)
 				if err != nil {
 					return
 				}
 
 				for _, pr := range pullRequests {
-					reviews, _, err := g.client.PullRequests.ListReviews(ctx, req.Username, repo, pr.GetNumber(), nil)
+					reviews, _, err := client.PullRequests.ListReviews(ctx, req.Username, repo, pr.GetNumber(), nil)
 					if err != nil {
 						return
 					}
@@ -866,7 +861,8 @@ func (s *Service) GetDependentRepositoriesByRepo(ctx context.Context, req *git.G
 }
 
 // getLineChanges 获取仓库的总增删行数和指定用户的增删行数，并统计提交次数
-func (g *Service) getLineChanges(ctx context.Context, repoOwner, repoName, username string) (int32, int32, int32, int32, error) {
+func (s *Service) getLineChanges(ctx context.Context, repoOwner, repoName, username string) (int32, int32, int32, int32, error) {
+	client := s.getClientFromContext(ctx)
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits", repoOwner, repoName)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -874,7 +870,7 @@ func (g *Service) getLineChanges(ctx context.Context, repoOwner, repoName, usern
 	}
 
 	var commits []Commit
-	_, err = g.client.Do(ctx, req, &commits)
+	_, err = client.Do(ctx, req, &commits)
 	if err != nil {
 		return 0, 0, 0, 0, fmt.Errorf("request failed: %v", err)
 	}
@@ -894,7 +890,7 @@ func (g *Service) getLineChanges(ctx context.Context, repoOwner, repoName, usern
 		}
 
 		var commitDetail CommitDetail
-		_, err = g.client.Do(ctx, detailReq, &commitDetail)
+		_, err = client.Do(ctx, detailReq, &commitDetail)
 		if err != nil {
 			log.Printf("failed to fetch commit details: %v", err)
 			continue
@@ -914,8 +910,8 @@ func (g *Service) getLineChanges(ctx context.Context, repoOwner, repoName, usern
 }
 
 // GetLineChangesByRepo 获取用户所有仓库的增删行数信息，包含总提交和用户提交
-func (g *Service) GetLineChangesByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoLineChangesResponse, error) {
-	repos, err := g.GetRepositories(ctx, req)
+func (s *Service) GetLineChangesByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoLineChangesResponse, error) {
+	repos, err := s.GetRepositories(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repositories: %v", err)
 	}
@@ -927,7 +923,7 @@ func (g *Service) GetLineChangesByRepo(ctx context.Context, req *git.GetUsername
 		go func(repo string) {
 			defer wg.Done()
 
-			totalChanges, userChanges, totalCommits, userCommits, err := g.getLineChanges(ctx, req.Username, repo, req.Username)
+			totalChanges, userChanges, totalCommits, userCommits, err := s.getLineChanges(ctx, req.Username, repo, req.Username)
 			if err != nil {
 				return // 跳过出错的仓库
 			}

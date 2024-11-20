@@ -22,13 +22,12 @@ func (h *Handler) Registry(r gin.IRouter) {
 		AllowCredentials: true,
 	}))
 
-	r.POST("/userRepos", h.CreateUserRepos)
 	r.GET("/user", h.QueryUsers)
 	r.GET("/userRepos", h.DescribeUserRepos)
 	r.GET("/api/locations", h.GetLocationCounts)
 	r.DELETE("/userRepos:id", h.DeleteUserRepos)
-
 	r.POST("/setToken", h.setTokenHandler)
+	r.POST("/userRepos", h.CreateUserRepos)
 }
 
 func (h *Handler) Config() {

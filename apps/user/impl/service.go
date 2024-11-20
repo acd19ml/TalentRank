@@ -54,7 +54,7 @@ func (s *ServiceImpl) Config() {
 
 	// 启动定时任务
 	go func() {
-		s.StartWeeklyUpdate(s.NewAuthenticatedContext(), apps.UpdateInterval)
+		s.StartWeeklyUpdate(s.NewAuthenticatedContext(context.Background()), apps.UpdateInterval)
 	}()
 }
 
@@ -68,8 +68,8 @@ func (s *ServiceImpl) SetGitClient(client git.GitServiceClient) {
 	s.svc = client
 }
 
-func (s *ServiceImpl) NewAuthenticatedContext() context.Context {
-	return metadata.NewOutgoingContext(context.Background(), metadata.Pairs())
+func (s *ServiceImpl) NewAuthenticatedContext(ctx context.Context) context.Context {
+	return metadata.NewOutgoingContext(ctx, metadata.Pairs())
 }
 
 func (s *ServiceImpl) Name() string {
