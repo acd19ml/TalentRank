@@ -7,7 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/acd19ml/TalentRank/middleware/client"
 	_ "github.com/go-sql-driver/mysql"
+	"google.golang.org/grpc"
 )
 
 // 全局config实例对象,
@@ -48,9 +50,13 @@ type Config struct {
 
 func NewDefaultApp() *App {
 	return &App{
-		Name: "demo",
-		Host: "127.0.0.1",
-		Port: "8050",
+		Name:    "demo",
+		Host:    "127.0.0.1",
+		Port:    "8050",
+		Key:     "123",
+		GitPort: "50051",
+		LlmPort: "50052",
+		pools:   make(map[string]*grpc.ClientConn),
 	}
 }
 
@@ -61,6 +67,8 @@ type App struct {
 	Key     string `toml:"key" env:"APP_KEY"`
 	GitPort string `toml:"git_port" env:"APP_GIT_PORT"`
 	LlmPort string `toml:"llm_port" env:"APP_LLM_PORT"`
+	mu      sync.Mutex
+	pools   map[string]*grpc.ClientConn
 }
 
 func NewDefaultMySQL() *MySQL {
@@ -149,4 +157,69 @@ func (a *App) GitAddr() string {
 
 func (a *App) LlmAddr() string {
 	return fmt.Sprintf("%s:%s", a.Host, a.LlmPort)
+}
+
+// 连接池注册
+func (a *App) InitClientConn() error {
+	services := map[string]string{
+		"llm": fmt.Sprintf("%s:%s", a.Host, a.LlmPort),
+		"git": fmt.Sprintf("%s:%s", a.Host, a.GitPort),
+	}
+
+	for name, target := range services {
+		if _, err := a.GetGRPCConnection(name, target); err != nil {
+			return fmt.Errorf("failed to initialize service %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+// 获取 gRPC 连接，不用显式传入目标
+func (a *App) GetGRPCConnection(serviceName string, target string) (*grpc.ClientConn, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	// 如果连接已存在，直接返回
+	if conn, ok := a.pools[serviceName]; ok {
+		return conn, nil
+	}
+
+	// 否则创建新连接
+	crendital := client.NewAuthentication("admin", "123456")
+	conn, err := grpc.DialContext(
+		context.Background(),
+		target,
+		grpc.WithInsecure(),
+		grpc.WithPerRPCCredentials(crendital),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// 保存到连接池
+	a.pools[serviceName] = conn
+	return conn, nil
+}
+
+// 获取服务连接（通过服务名）
+func (a *App) GetServiceConn(serviceName string) (*grpc.ClientConn, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	conn, ok := a.pools[serviceName]
+	if !ok {
+		return nil, fmt.Errorf("service %s not found in connection pool", serviceName)
+	}
+	return conn, nil
+}
+
+// 关闭所有连接
+func (a *App) CloseAll() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	for serviceName, conn := range a.pools {
+		conn.Close()
+		delete(a.pools, serviceName)
+	}
 }

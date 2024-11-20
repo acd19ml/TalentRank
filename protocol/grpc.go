@@ -78,6 +78,7 @@ func (s *GRPCService) StartLlm() {
 }
 
 func (s *GRPCService) Stop() error {
+	s.c.App.CloseAll()
 	s.svr.GracefulStop()
 	return nil
 }

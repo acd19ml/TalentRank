@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"regexp"
 
 	"github.com/acd19ml/TalentRank/apps/llm"
@@ -50,13 +49,9 @@ func (s *LLMServer) processCompletion(inputJSON []byte) ([]byte, error) {
 		Messages: messages,
 	}
 
-	// 打印请求信息
-	log.Printf("Request: %+v\n", req)
-
 	ctx := context.Background()
 	resp, err := s.client.CreateChatCompletion(ctx, req)
 	if err != nil {
-		log.Printf("Request failed: %v\n", err)
 		return nil, fmt.Errorf("请求错误: %v", err)
 	}
 

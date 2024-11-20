@@ -10,7 +10,6 @@ import (
 	"github.com/acd19ml/TalentRank/apps/llm"
 	"github.com/acd19ml/TalentRank/apps/user"
 	"github.com/acd19ml/TalentRank/conf"
-	"github.com/acd19ml/TalentRank/middleware/client"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -30,8 +29,24 @@ func (s *ServiceImpl) Config() {
 	s.Db = conf.C().MySQL.GetDB()
 
 	// 初始化 gRPC 连接
-	s.gitConn = s.createGRPCConn("localhost:50051", "Git gRPC server")
-	s.llmConn = s.createGRPCConn("localhost:50052", "LLM gRPC server")
+	if err := conf.C().App.InitClientConn(); err != nil {
+		panic(err)
+	}
+
+	// 获取 LLM 服务连接
+	llmConn, err := conf.C().App.GetServiceConn(user.LlmClient)
+	if err != nil {
+		log.Fatalf("failed to get LLM client service connection: %v", err)
+	}
+
+	// 获取 Git 服务连接
+	gitConn, err := conf.C().App.GetServiceConn(user.GitClient)
+	if err != nil {
+		log.Fatalf("failed to get Git client service connection: %v", err)
+	}
+
+	s.llmConn = llmConn
+	s.gitConn = gitConn
 
 	// 初始化 gRPC 客户端
 	s.svc = git.NewGitServiceClient(s.gitConn)
@@ -51,21 +66,6 @@ func (s *ServiceImpl) SetLLMClient(client llm.LLMServiceClient) {
 // SetGitClient 提供一个用于测试的 Setter 方法
 func (s *ServiceImpl) SetGitClient(client git.GitServiceClient) {
 	s.svc = client
-}
-
-// createGRPCConn 创建 gRPC 连接并返回连接对象
-func (s *ServiceImpl) createGRPCConn(address string, serviceName string) *grpc.ClientConn {
-	crendital := client.NewAuthentication("admin", "123456")
-	conn, err := grpc.DialContext(
-		context.Background(),
-		address,
-		grpc.WithInsecure(),
-		grpc.WithPerRPCCredentials(crendital),
-	)
-	if err != nil {
-		log.Fatalf("failed to connect to %s: %v", serviceName, err)
-	}
-	return conn
 }
 
 func (s *ServiceImpl) NewAuthenticatedContext() context.Context {
