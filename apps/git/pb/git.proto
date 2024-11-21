@@ -27,9 +27,6 @@ service GitService {
     rpc GetFollowers(GetUsernameRequest) returns (IntResponse);
     rpc GetReadme(GetReadmeRequest) returns (StringResponse);
     rpc GetCommits(GetCommitsRequest) returns (StringResponse);
-
-    // Token
-    rpc UpdateToken(TokenRequest) returns (TokenResponse);
 }
 
 // 请求和响应消息定义
