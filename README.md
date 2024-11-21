@@ -20,6 +20,10 @@ source ~/.bashrc
 echo $GITHUB_TOKEN
 ```
 ## 运行代码
+启动docker
+```
+docker-compose up -d
+```
 启动前端
 ```
 make runf
