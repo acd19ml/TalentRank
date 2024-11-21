@@ -385,13 +385,23 @@ func (s *ServiceImpl) FetchUserFromDB(ctx context.Context, username string) (*us
 }
 
 // FetchReposFromDB 从数据库中获取用户的仓库名称
+// FetchReposFromDB 从数据库中获取用户的仓库名称
 func (s *ServiceImpl) FetchReposFromDB(ctx context.Context, username string) ([]string, error) {
-	rows, err := s.Db.QueryContext(ctx, "SELECT repo FROM repo WHERE username = ?", username) // 只查询 repo 列
+	// 从 user 表中获取 user_id
+	var userID string
+	err := s.Db.QueryRowContext(ctx, "SELECT id FROM user WHERE username = ?", username).Scan(&userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query user repositories: %w", err)
+		return nil, fmt.Errorf("failed to fetch user ID for username %s: %w", username, err)
+	}
+
+	// 使用 user_id 查询 repo 表中的 repo 字段
+	rows, err := s.Db.QueryContext(ctx, "SELECT repo FROM repo WHERE user_id = ?", userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query repositories for user ID %d: %w", userID, err)
 	}
 	defer rows.Close()
 
+	// 收集所有 repo 名称
 	var repoNames []string
 	for rows.Next() {
 		var repoName string
@@ -493,48 +503,41 @@ func (s *ServiceImpl) RemoveDuplicateUsers(ctx context.Context) error {
 	return nil
 }
 
-func (s *ServiceImpl) SaveUserDataToDB(ctx context.Context, username string, field string, value interface{}) error {
-	// 准备更新语句
-	var updateQuery string
-	var args []interface{}
+func (s *ServiceImpl) SaveUserDataToDB(ctx context.Context, username, function string, result interface{}) error {
+	var query string
+	var value interface{}
 
-	switch field {
+	switch function {
 	case "GetName":
-		updateQuery = "UPDATE User SET name = ? WHERE username = ?"
-		args = append(args, value, username)
+		query = "UPDATE User SET name = ? WHERE username = ?"
+		value = result.(*git.StringResponse).Result
 	case "GetCompany":
-		updateQuery = "UPDATE User SET company = ? WHERE username = ?"
-		args = append(args, value, username)
+		query = "UPDATE User SET company = ? WHERE username = ?"
+		value = result.(*git.StringResponse).Result
 	case "GetLocation":
-		updateQuery = "UPDATE User SET location = ? WHERE username = ?"
-		args = append(args, value, username)
+		query = "UPDATE User SET location = ? WHERE username = ?"
+		value = result.(*git.StringResponse).Result
 	case "GetEmail":
-		updateQuery = "UPDATE User SET email = ? WHERE username = ?"
-		args = append(args, value, username)
+		query = "UPDATE User SET email = ? WHERE username = ?"
+		value = result.(*git.StringResponse).Result
 	case "GetBio":
-		updateQuery = "UPDATE User SET bio = ? WHERE username = ?"
-		args = append(args, value, username)
+		query = "UPDATE User SET bio = ? WHERE username = ?"
+		value = result.(*git.StringResponse).Result
 	case "GetOrganizations":
-		// 确保 JSON 格式正确
-		orgsJSON, err := json.Marshal(value)
-		if err != nil {
-			return fmt.Errorf("failed to marshal organizations: %v", err)
-		}
-		updateQuery = "UPDATE User SET organizations = ? WHERE username = ?"
-		args = append(args, orgsJSON, username)
+		query = "UPDATE User SET organizations = ? WHERE username = ?"
+		valueBytes, _ := json.Marshal(result.(*git.StringListResponse).Result)
+		value = string(valueBytes) // 转为 JSON 字符串存储
 	case "GetFollowers":
-		updateQuery = "UPDATE User SET followers = ? WHERE username = ?"
-		args = append(args, value, username)
+		query = "UPDATE User SET followers = ? WHERE username = ?"
+		value = result.(*git.IntResponse).Result
 	default:
-		return fmt.Errorf("unknown field: %s", field)
+		return fmt.Errorf("unknown function: %s", function)
 	}
 
-	// 执行更新操作
-	_, err := s.Db.ExecContext(ctx, updateQuery, args...)
+	_, err := s.Db.ExecContext(ctx, query, value, username)
 	if err != nil {
-		return fmt.Errorf("failed to update user data: %v", err)
+		return fmt.Errorf("failed to update user data: %w", err)
 	}
-
 	return nil
 }
 

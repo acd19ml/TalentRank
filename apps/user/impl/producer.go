@@ -12,7 +12,7 @@ import (
 var producerRateLimiter = rate.NewLimiter(rate.Every(5*time.Second), 1) // 每 5 秒生成一条消息
 
 func (s *ServiceImpl) StartProducer(ctx context.Context) {
-	ticker := time.NewTicker(24 * time.Hour) // 每日触发
+	ticker := time.NewTicker(24 * time.Second) // 每日触发
 	log.Println("The data update cleanup task will start every 24 hours")
 	defer ticker.Stop()
 
@@ -64,8 +64,6 @@ func (s *ServiceImpl) StartProducer(ctx context.Context) {
 					err := s.Producer.Produce(ctx, "user_api_tasks", message)
 					if err != nil {
 						log.Printf("Failed to produce message for function %s: %v", function, err)
-					} else {
-						log.Printf("Produced message: %v", message)
 					}
 				}
 

@@ -10,6 +10,22 @@ import (
 type KafkaConsumer struct {
 	reader *kafka.Reader
 }
+type MultiTopicConsumer struct {
+	RepoConsumer *KafkaConsumer
+	UserConsumer *KafkaConsumer
+}
+
+// ConsumeMessage fetches messages from the appropriate topic
+func (mc *MultiTopicConsumer) Consume(ctx context.Context, topic string) ([]byte, error) {
+	switch topic {
+	case "repo_api_tasks":
+		return mc.RepoConsumer.Consume(ctx, topic)
+	case "user_api_tasks":
+		return mc.UserConsumer.Consume(ctx, topic)
+	default:
+		return nil, fmt.Errorf("unknown topic: %s", topic)
+	}
+}
 
 // NewKafkaConsumer 初始化 Kafka 消费者
 func NewKafkaConsumer(brokers []string, topic string, groupID string) *KafkaConsumer {

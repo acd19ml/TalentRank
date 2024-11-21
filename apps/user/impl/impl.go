@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"time"
 
@@ -56,12 +57,9 @@ func (s *ServiceImpl) Config() {
 	s.svc = git.NewGitServiceClient(s.gitConn)
 	s.llm = llm.NewLLMServiceClient(s.llmConn)
 
-	// 配置 Kafka 生产者
-	s.Producer = kafka.NewKafkaProducer([]string{"localhost:9092"})
+	brokers := []string{"localhost:9092"}
 
-	// 配置 Kafka 消费者
-	s.Consumer = kafka.NewKafkaConsumer([]string{"localhost:9092"}, "repo_api_tasks", "my-group")
-	log.Println("Kafka Broker listening on localhost:9092")
+	s.InitializeKafka(brokers)
 
 	// 初始化速率限制器
 	rateLimiter := NewRateLimiter(10, time.Second) // 每秒最多处理 10 条消息
@@ -90,6 +88,30 @@ func (s *ServiceImpl) NewAuthenticatedContext(ctx context.Context) context.Conte
 
 func (s *ServiceImpl) Name() string {
 	return user.AppName
+}
+
+func (s *ServiceImpl) InitializeKafka(brokers []string) error {
+	log.Println("Initializing Kafka Producer...")
+	s.Producer = kafka.NewKafkaProducer(brokers)
+
+	log.Println("Initializing Kafka Consumers...")
+	repoConsumer := kafka.NewKafkaConsumer(brokers, "repo_api_tasks", "repo-group")
+	if repoConsumer == nil {
+		return fmt.Errorf("failed to initialize Kafka consumer for topic: repo_api_tasks")
+	}
+	userConsumer := kafka.NewKafkaConsumer(brokers, "user_api_tasks", "user-group")
+	if userConsumer == nil {
+		return fmt.Errorf("failed to initialize Kafka consumer for topic: user_api_tasks")
+	}
+
+	// 将消费者注册到 ServiceImpl
+	s.Consumer = &kafka.MultiTopicConsumer{
+		RepoConsumer: repoConsumer,
+		UserConsumer: userConsumer,
+	}
+
+	log.Println("Kafka Producer and Consumers initialized successfully.")
+	return nil
 }
 
 // _ import app 自动执行注册逻辑
