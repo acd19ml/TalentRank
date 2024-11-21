@@ -94,8 +94,8 @@ func TestGetOrganizations_Integration(t *testing.T) {
 	require.NotNil(t, resp)
 
 	// 验证响应中的组织列表
-	require.NotEmpty(t, resp.Organizations, "Organizations list should not be empty")
-	for _, org := range resp.Organizations {
+	require.NotEmpty(t, resp.Result, "Organizations list should not be empty")
+	for _, org := range resp.Result {
 		t.Logf("Organization: %s", org)
 	}
 }

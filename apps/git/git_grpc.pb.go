@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	GitService_GetRepositories_FullMethodName                 = "/git.GitService/GetRepositories"
 	GitService_GetDependentRepositoriesByRepo_FullMethodName  = "/git.GitService/GetDependentRepositoriesByRepo"
 	GitService_GetStarsByRepo_FullMethodName                  = "/git.GitService/GetStarsByRepo"
 	GitService_GetForksByRepo_FullMethodName                  = "/git.GitService/GetForksByRepo"
@@ -28,7 +29,7 @@ const (
 	GitService_GetUserMergedPullRequestsByRepo_FullMethodName = "/git.GitService/GetUserMergedPullRequestsByRepo"
 	GitService_GetTotalCodeReviewsByRepo_FullMethodName       = "/git.GitService/GetTotalCodeReviewsByRepo"
 	GitService_GetUserCodeReviewsByRepo_FullMethodName        = "/git.GitService/GetUserCodeReviewsByRepo"
-	GitService_GetLineChangesByRepo_FullMethodName            = "/git.GitService/GetLineChangesByRepo"
+	GitService_GetLineChangesCommitsByRepo_FullMethodName     = "/git.GitService/GetLineChangesCommitsByRepo"
 	GitService_GetName_FullMethodName                         = "/git.GitService/GetName"
 	GitService_GetCompany_FullMethodName                      = "/git.GitService/GetCompany"
 	GitService_GetLocation_FullMethodName                     = "/git.GitService/GetLocation"
@@ -45,23 +46,24 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type GitServiceClient interface {
 	// Repo table methods
-	GetDependentRepositoriesByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error)
-	GetStarsByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error)
-	GetForksByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error)
-	GetTotalIssuesByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error)
-	GetUserSolvedIssuesByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error)
-	GetTotalPullRequestsByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error)
-	GetUserMergedPullRequestsByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error)
-	GetTotalCodeReviewsByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error)
-	GetUserCodeReviewsByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error)
-	GetLineChangesByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoLineChangesResponse, error)
+	GetRepositories(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*StringListResponse, error)
+	GetDependentRepositoriesByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	GetStarsByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	GetForksByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	GetTotalIssuesByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	GetUserSolvedIssuesByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	GetTotalPullRequestsByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	GetUserMergedPullRequestsByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	GetTotalCodeReviewsByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	GetUserCodeReviewsByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	GetLineChangesCommitsByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*RepoLineChangesCommitsResponse, error)
 	// User table methods
 	GetName(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*StringResponse, error)
 	GetCompany(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*StringResponse, error)
 	GetLocation(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*StringResponse, error)
 	GetEmail(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*StringResponse, error)
 	GetBio(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*StringResponse, error)
-	GetOrganizations(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*OrgListResponse, error)
+	GetOrganizations(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*StringListResponse, error)
 	GetFollowers(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*IntResponse, error)
 	GetReadme(ctx context.Context, in *GetReadmeRequest, opts ...grpc.CallOption) (*StringResponse, error)
 	GetCommits(ctx context.Context, in *GetCommitsRequest, opts ...grpc.CallOption) (*StringResponse, error)
@@ -75,9 +77,19 @@ func NewGitServiceClient(cc grpc.ClientConnInterface) GitServiceClient {
 	return &gitServiceClient{cc}
 }
 
-func (c *gitServiceClient) GetDependentRepositoriesByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error) {
+func (c *gitServiceClient) GetRepositories(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*StringListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RepoIntMapResponse)
+	out := new(StringListResponse)
+	err := c.cc.Invoke(ctx, GitService_GetRepositories_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gitServiceClient) GetDependentRepositoriesByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IntResponse)
 	err := c.cc.Invoke(ctx, GitService_GetDependentRepositoriesByRepo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -85,9 +97,9 @@ func (c *gitServiceClient) GetDependentRepositoriesByRepo(ctx context.Context, i
 	return out, nil
 }
 
-func (c *gitServiceClient) GetStarsByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error) {
+func (c *gitServiceClient) GetStarsByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RepoIntMapResponse)
+	out := new(IntResponse)
 	err := c.cc.Invoke(ctx, GitService_GetStarsByRepo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -95,9 +107,9 @@ func (c *gitServiceClient) GetStarsByRepo(ctx context.Context, in *GetUsernameRe
 	return out, nil
 }
 
-func (c *gitServiceClient) GetForksByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error) {
+func (c *gitServiceClient) GetForksByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RepoIntMapResponse)
+	out := new(IntResponse)
 	err := c.cc.Invoke(ctx, GitService_GetForksByRepo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -105,9 +117,9 @@ func (c *gitServiceClient) GetForksByRepo(ctx context.Context, in *GetUsernameRe
 	return out, nil
 }
 
-func (c *gitServiceClient) GetTotalIssuesByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error) {
+func (c *gitServiceClient) GetTotalIssuesByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RepoIntMapResponse)
+	out := new(IntResponse)
 	err := c.cc.Invoke(ctx, GitService_GetTotalIssuesByRepo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -115,9 +127,9 @@ func (c *gitServiceClient) GetTotalIssuesByRepo(ctx context.Context, in *GetUser
 	return out, nil
 }
 
-func (c *gitServiceClient) GetUserSolvedIssuesByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error) {
+func (c *gitServiceClient) GetUserSolvedIssuesByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RepoIntMapResponse)
+	out := new(IntResponse)
 	err := c.cc.Invoke(ctx, GitService_GetUserSolvedIssuesByRepo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -125,9 +137,9 @@ func (c *gitServiceClient) GetUserSolvedIssuesByRepo(ctx context.Context, in *Ge
 	return out, nil
 }
 
-func (c *gitServiceClient) GetTotalPullRequestsByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error) {
+func (c *gitServiceClient) GetTotalPullRequestsByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RepoIntMapResponse)
+	out := new(IntResponse)
 	err := c.cc.Invoke(ctx, GitService_GetTotalPullRequestsByRepo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -135,9 +147,9 @@ func (c *gitServiceClient) GetTotalPullRequestsByRepo(ctx context.Context, in *G
 	return out, nil
 }
 
-func (c *gitServiceClient) GetUserMergedPullRequestsByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error) {
+func (c *gitServiceClient) GetUserMergedPullRequestsByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RepoIntMapResponse)
+	out := new(IntResponse)
 	err := c.cc.Invoke(ctx, GitService_GetUserMergedPullRequestsByRepo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -145,9 +157,9 @@ func (c *gitServiceClient) GetUserMergedPullRequestsByRepo(ctx context.Context, 
 	return out, nil
 }
 
-func (c *gitServiceClient) GetTotalCodeReviewsByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error) {
+func (c *gitServiceClient) GetTotalCodeReviewsByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RepoIntMapResponse)
+	out := new(IntResponse)
 	err := c.cc.Invoke(ctx, GitService_GetTotalCodeReviewsByRepo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -155,9 +167,9 @@ func (c *gitServiceClient) GetTotalCodeReviewsByRepo(ctx context.Context, in *Ge
 	return out, nil
 }
 
-func (c *gitServiceClient) GetUserCodeReviewsByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoIntMapResponse, error) {
+func (c *gitServiceClient) GetUserCodeReviewsByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*IntResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RepoIntMapResponse)
+	out := new(IntResponse)
 	err := c.cc.Invoke(ctx, GitService_GetUserCodeReviewsByRepo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -165,10 +177,10 @@ func (c *gitServiceClient) GetUserCodeReviewsByRepo(ctx context.Context, in *Get
 	return out, nil
 }
 
-func (c *gitServiceClient) GetLineChangesByRepo(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*RepoLineChangesResponse, error) {
+func (c *gitServiceClient) GetLineChangesCommitsByRepo(ctx context.Context, in *RepoRequest, opts ...grpc.CallOption) (*RepoLineChangesCommitsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RepoLineChangesResponse)
-	err := c.cc.Invoke(ctx, GitService_GetLineChangesByRepo_FullMethodName, in, out, cOpts...)
+	out := new(RepoLineChangesCommitsResponse)
+	err := c.cc.Invoke(ctx, GitService_GetLineChangesCommitsByRepo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -225,9 +237,9 @@ func (c *gitServiceClient) GetBio(ctx context.Context, in *GetUsernameRequest, o
 	return out, nil
 }
 
-func (c *gitServiceClient) GetOrganizations(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*OrgListResponse, error) {
+func (c *gitServiceClient) GetOrganizations(ctx context.Context, in *GetUsernameRequest, opts ...grpc.CallOption) (*StringListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(OrgListResponse)
+	out := new(StringListResponse)
 	err := c.cc.Invoke(ctx, GitService_GetOrganizations_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -270,23 +282,24 @@ func (c *gitServiceClient) GetCommits(ctx context.Context, in *GetCommitsRequest
 // for forward compatibility.
 type GitServiceServer interface {
 	// Repo table methods
-	GetDependentRepositoriesByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error)
-	GetStarsByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error)
-	GetForksByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error)
-	GetTotalIssuesByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error)
-	GetUserSolvedIssuesByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error)
-	GetTotalPullRequestsByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error)
-	GetUserMergedPullRequestsByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error)
-	GetTotalCodeReviewsByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error)
-	GetUserCodeReviewsByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error)
-	GetLineChangesByRepo(context.Context, *GetUsernameRequest) (*RepoLineChangesResponse, error)
+	GetRepositories(context.Context, *GetUsernameRequest) (*StringListResponse, error)
+	GetDependentRepositoriesByRepo(context.Context, *RepoRequest) (*IntResponse, error)
+	GetStarsByRepo(context.Context, *RepoRequest) (*IntResponse, error)
+	GetForksByRepo(context.Context, *RepoRequest) (*IntResponse, error)
+	GetTotalIssuesByRepo(context.Context, *RepoRequest) (*IntResponse, error)
+	GetUserSolvedIssuesByRepo(context.Context, *RepoRequest) (*IntResponse, error)
+	GetTotalPullRequestsByRepo(context.Context, *RepoRequest) (*IntResponse, error)
+	GetUserMergedPullRequestsByRepo(context.Context, *RepoRequest) (*IntResponse, error)
+	GetTotalCodeReviewsByRepo(context.Context, *RepoRequest) (*IntResponse, error)
+	GetUserCodeReviewsByRepo(context.Context, *RepoRequest) (*IntResponse, error)
+	GetLineChangesCommitsByRepo(context.Context, *RepoRequest) (*RepoLineChangesCommitsResponse, error)
 	// User table methods
 	GetName(context.Context, *GetUsernameRequest) (*StringResponse, error)
 	GetCompany(context.Context, *GetUsernameRequest) (*StringResponse, error)
 	GetLocation(context.Context, *GetUsernameRequest) (*StringResponse, error)
 	GetEmail(context.Context, *GetUsernameRequest) (*StringResponse, error)
 	GetBio(context.Context, *GetUsernameRequest) (*StringResponse, error)
-	GetOrganizations(context.Context, *GetUsernameRequest) (*OrgListResponse, error)
+	GetOrganizations(context.Context, *GetUsernameRequest) (*StringListResponse, error)
 	GetFollowers(context.Context, *GetUsernameRequest) (*IntResponse, error)
 	GetReadme(context.Context, *GetReadmeRequest) (*StringResponse, error)
 	GetCommits(context.Context, *GetCommitsRequest) (*StringResponse, error)
@@ -300,35 +313,38 @@ type GitServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedGitServiceServer struct{}
 
-func (UnimplementedGitServiceServer) GetDependentRepositoriesByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error) {
+func (UnimplementedGitServiceServer) GetRepositories(context.Context, *GetUsernameRequest) (*StringListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRepositories not implemented")
+}
+func (UnimplementedGitServiceServer) GetDependentRepositoriesByRepo(context.Context, *RepoRequest) (*IntResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDependentRepositoriesByRepo not implemented")
 }
-func (UnimplementedGitServiceServer) GetStarsByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error) {
+func (UnimplementedGitServiceServer) GetStarsByRepo(context.Context, *RepoRequest) (*IntResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStarsByRepo not implemented")
 }
-func (UnimplementedGitServiceServer) GetForksByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error) {
+func (UnimplementedGitServiceServer) GetForksByRepo(context.Context, *RepoRequest) (*IntResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetForksByRepo not implemented")
 }
-func (UnimplementedGitServiceServer) GetTotalIssuesByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error) {
+func (UnimplementedGitServiceServer) GetTotalIssuesByRepo(context.Context, *RepoRequest) (*IntResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTotalIssuesByRepo not implemented")
 }
-func (UnimplementedGitServiceServer) GetUserSolvedIssuesByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error) {
+func (UnimplementedGitServiceServer) GetUserSolvedIssuesByRepo(context.Context, *RepoRequest) (*IntResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserSolvedIssuesByRepo not implemented")
 }
-func (UnimplementedGitServiceServer) GetTotalPullRequestsByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error) {
+func (UnimplementedGitServiceServer) GetTotalPullRequestsByRepo(context.Context, *RepoRequest) (*IntResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTotalPullRequestsByRepo not implemented")
 }
-func (UnimplementedGitServiceServer) GetUserMergedPullRequestsByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error) {
+func (UnimplementedGitServiceServer) GetUserMergedPullRequestsByRepo(context.Context, *RepoRequest) (*IntResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserMergedPullRequestsByRepo not implemented")
 }
-func (UnimplementedGitServiceServer) GetTotalCodeReviewsByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error) {
+func (UnimplementedGitServiceServer) GetTotalCodeReviewsByRepo(context.Context, *RepoRequest) (*IntResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTotalCodeReviewsByRepo not implemented")
 }
-func (UnimplementedGitServiceServer) GetUserCodeReviewsByRepo(context.Context, *GetUsernameRequest) (*RepoIntMapResponse, error) {
+func (UnimplementedGitServiceServer) GetUserCodeReviewsByRepo(context.Context, *RepoRequest) (*IntResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserCodeReviewsByRepo not implemented")
 }
-func (UnimplementedGitServiceServer) GetLineChangesByRepo(context.Context, *GetUsernameRequest) (*RepoLineChangesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetLineChangesByRepo not implemented")
+func (UnimplementedGitServiceServer) GetLineChangesCommitsByRepo(context.Context, *RepoRequest) (*RepoLineChangesCommitsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLineChangesCommitsByRepo not implemented")
 }
 func (UnimplementedGitServiceServer) GetName(context.Context, *GetUsernameRequest) (*StringResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetName not implemented")
@@ -345,7 +361,7 @@ func (UnimplementedGitServiceServer) GetEmail(context.Context, *GetUsernameReque
 func (UnimplementedGitServiceServer) GetBio(context.Context, *GetUsernameRequest) (*StringResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBio not implemented")
 }
-func (UnimplementedGitServiceServer) GetOrganizations(context.Context, *GetUsernameRequest) (*OrgListResponse, error) {
+func (UnimplementedGitServiceServer) GetOrganizations(context.Context, *GetUsernameRequest) (*StringListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOrganizations not implemented")
 }
 func (UnimplementedGitServiceServer) GetFollowers(context.Context, *GetUsernameRequest) (*IntResponse, error) {
@@ -378,8 +394,26 @@ func RegisterGitServiceServer(s grpc.ServiceRegistrar, srv GitServiceServer) {
 	s.RegisterService(&GitService_ServiceDesc, srv)
 }
 
-func _GitService_GetDependentRepositoriesByRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _GitService_GetRepositories_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetUsernameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GitServiceServer).GetRepositories(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GitService_GetRepositories_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GitServiceServer).GetRepositories(ctx, req.(*GetUsernameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GitService_GetDependentRepositoriesByRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RepoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -391,13 +425,13 @@ func _GitService_GetDependentRepositoriesByRepo_Handler(srv interface{}, ctx con
 		FullMethod: GitService_GetDependentRepositoriesByRepo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GitServiceServer).GetDependentRepositoriesByRepo(ctx, req.(*GetUsernameRequest))
+		return srv.(GitServiceServer).GetDependentRepositoriesByRepo(ctx, req.(*RepoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _GitService_GetStarsByRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUsernameRequest)
+	in := new(RepoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -409,13 +443,13 @@ func _GitService_GetStarsByRepo_Handler(srv interface{}, ctx context.Context, de
 		FullMethod: GitService_GetStarsByRepo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GitServiceServer).GetStarsByRepo(ctx, req.(*GetUsernameRequest))
+		return srv.(GitServiceServer).GetStarsByRepo(ctx, req.(*RepoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _GitService_GetForksByRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUsernameRequest)
+	in := new(RepoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -427,13 +461,13 @@ func _GitService_GetForksByRepo_Handler(srv interface{}, ctx context.Context, de
 		FullMethod: GitService_GetForksByRepo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GitServiceServer).GetForksByRepo(ctx, req.(*GetUsernameRequest))
+		return srv.(GitServiceServer).GetForksByRepo(ctx, req.(*RepoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _GitService_GetTotalIssuesByRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUsernameRequest)
+	in := new(RepoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -445,13 +479,13 @@ func _GitService_GetTotalIssuesByRepo_Handler(srv interface{}, ctx context.Conte
 		FullMethod: GitService_GetTotalIssuesByRepo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GitServiceServer).GetTotalIssuesByRepo(ctx, req.(*GetUsernameRequest))
+		return srv.(GitServiceServer).GetTotalIssuesByRepo(ctx, req.(*RepoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _GitService_GetUserSolvedIssuesByRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUsernameRequest)
+	in := new(RepoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -463,13 +497,13 @@ func _GitService_GetUserSolvedIssuesByRepo_Handler(srv interface{}, ctx context.
 		FullMethod: GitService_GetUserSolvedIssuesByRepo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GitServiceServer).GetUserSolvedIssuesByRepo(ctx, req.(*GetUsernameRequest))
+		return srv.(GitServiceServer).GetUserSolvedIssuesByRepo(ctx, req.(*RepoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _GitService_GetTotalPullRequestsByRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUsernameRequest)
+	in := new(RepoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -481,13 +515,13 @@ func _GitService_GetTotalPullRequestsByRepo_Handler(srv interface{}, ctx context
 		FullMethod: GitService_GetTotalPullRequestsByRepo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GitServiceServer).GetTotalPullRequestsByRepo(ctx, req.(*GetUsernameRequest))
+		return srv.(GitServiceServer).GetTotalPullRequestsByRepo(ctx, req.(*RepoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _GitService_GetUserMergedPullRequestsByRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUsernameRequest)
+	in := new(RepoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -499,13 +533,13 @@ func _GitService_GetUserMergedPullRequestsByRepo_Handler(srv interface{}, ctx co
 		FullMethod: GitService_GetUserMergedPullRequestsByRepo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GitServiceServer).GetUserMergedPullRequestsByRepo(ctx, req.(*GetUsernameRequest))
+		return srv.(GitServiceServer).GetUserMergedPullRequestsByRepo(ctx, req.(*RepoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _GitService_GetTotalCodeReviewsByRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUsernameRequest)
+	in := new(RepoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -517,13 +551,13 @@ func _GitService_GetTotalCodeReviewsByRepo_Handler(srv interface{}, ctx context.
 		FullMethod: GitService_GetTotalCodeReviewsByRepo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GitServiceServer).GetTotalCodeReviewsByRepo(ctx, req.(*GetUsernameRequest))
+		return srv.(GitServiceServer).GetTotalCodeReviewsByRepo(ctx, req.(*RepoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _GitService_GetUserCodeReviewsByRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUsernameRequest)
+	in := new(RepoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -535,25 +569,25 @@ func _GitService_GetUserCodeReviewsByRepo_Handler(srv interface{}, ctx context.C
 		FullMethod: GitService_GetUserCodeReviewsByRepo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GitServiceServer).GetUserCodeReviewsByRepo(ctx, req.(*GetUsernameRequest))
+		return srv.(GitServiceServer).GetUserCodeReviewsByRepo(ctx, req.(*RepoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GitService_GetLineChangesByRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUsernameRequest)
+func _GitService_GetLineChangesCommitsByRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RepoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GitServiceServer).GetLineChangesByRepo(ctx, in)
+		return srv.(GitServiceServer).GetLineChangesCommitsByRepo(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: GitService_GetLineChangesByRepo_FullMethodName,
+		FullMethod: GitService_GetLineChangesCommitsByRepo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GitServiceServer).GetLineChangesByRepo(ctx, req.(*GetUsernameRequest))
+		return srv.(GitServiceServer).GetLineChangesCommitsByRepo(ctx, req.(*RepoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -728,6 +762,10 @@ var GitService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*GitServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "GetRepositories",
+			Handler:    _GitService_GetRepositories_Handler,
+		},
+		{
 			MethodName: "GetDependentRepositoriesByRepo",
 			Handler:    _GitService_GetDependentRepositoriesByRepo_Handler,
 		},
@@ -764,8 +802,8 @@ var GitService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GitService_GetUserCodeReviewsByRepo_Handler,
 		},
 		{
-			MethodName: "GetLineChangesByRepo",
-			Handler:    _GitService_GetLineChangesByRepo_Handler,
+			MethodName: "GetLineChangesCommitsByRepo",
+			Handler:    _GitService_GetLineChangesCommitsByRepo_Handler,
 		},
 		{
 			MethodName: "GetName",

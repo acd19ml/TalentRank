@@ -6,16 +6,17 @@ option go_package = "github.com/acd19ml/TalentRank/apps/git";
 
 service GitService {
     // Repo table methods
-    rpc GetDependentRepositoriesByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
-    rpc GetStarsByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
-    rpc GetForksByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
-    rpc GetTotalIssuesByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
-    rpc GetUserSolvedIssuesByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
-    rpc GetTotalPullRequestsByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
-    rpc GetUserMergedPullRequestsByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
-    rpc GetTotalCodeReviewsByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
-    rpc GetUserCodeReviewsByRepo(GetUsernameRequest) returns (RepoIntMapResponse);
-    rpc GetLineChangesByRepo(GetUsernameRequest) returns (RepoLineChangesResponse);
+    rpc GetRepositories(GetUsernameRequest) returns (StringListResponse);
+    rpc GetDependentRepositoriesByRepo(RepoRequest) returns (IntResponse);
+    rpc GetStarsByRepo(RepoRequest) returns (IntResponse);
+    rpc GetForksByRepo(RepoRequest) returns (IntResponse);
+    rpc GetTotalIssuesByRepo(RepoRequest) returns (IntResponse);
+    rpc GetUserSolvedIssuesByRepo(RepoRequest) returns (IntResponse);
+    rpc GetTotalPullRequestsByRepo(RepoRequest) returns (IntResponse);
+    rpc GetUserMergedPullRequestsByRepo(RepoRequest) returns (IntResponse);
+    rpc GetTotalCodeReviewsByRepo(RepoRequest) returns (IntResponse);
+    rpc GetUserCodeReviewsByRepo(RepoRequest) returns (IntResponse);
+    rpc GetLineChangesCommitsByRepo(RepoRequest) returns (RepoLineChangesCommitsResponse);
 
     // User table methods
     rpc GetName(GetUsernameRequest) returns (StringResponse);
@@ -23,7 +24,7 @@ service GitService {
     rpc GetLocation(GetUsernameRequest) returns (StringResponse);
     rpc GetEmail(GetUsernameRequest) returns (StringResponse);
     rpc GetBio(GetUsernameRequest) returns (StringResponse);
-    rpc GetOrganizations(GetUsernameRequest) returns (OrgListResponse);
+    rpc GetOrganizations(GetUsernameRequest) returns (StringListResponse);
     rpc GetFollowers(GetUsernameRequest) returns (IntResponse);
     rpc GetReadme(GetReadmeRequest) returns (StringResponse);
     rpc GetCommits(GetCommitsRequest) returns (StringResponse);
@@ -36,18 +37,8 @@ message GetUsernameRequest {
     string username = 1;
 }
 
-// 用于Repo table方法的响应消息，返回一个map形式的数据结构
-message RepoIntMapResponse {
-    map<string, int32> repo_map = 1;
-}
-
-// 用于GetLineChangesByRepo的响应消息
-message RepoLineChangesResponse {
-    map<string, LineChangeStats> repo_changes = 1;
-}
-
 // LineChangeStats包含每个仓库的增删行数信息
-message LineChangeStats {
+message RepoLineChangesCommitsResponse {
     int32 total_changes = 1;
     int32 user_changes = 2;
     int32 total_commits = 3;
@@ -64,9 +55,9 @@ message IntResponse {
     int32 result = 1;
 }
 
-// 返回组织列表的响应消息
-message OrgListResponse {
-    repeated string organizations = 1;
+// 返回string array的响应消息
+message StringListResponse {
+    repeated string result = 1;
 }
 
 // Readme请求消息
@@ -97,17 +88,4 @@ message UserResponse {
 message RepoRequest {
     string owner = 1;      // 仓库拥有者的用户名
     string repo_name = 2;  // 仓库名称
-}
-
-message RepoResponse {
-    repeated string repos = 1;
-}
-
-// 用户传递的token
-message TokenRequest {
-    string token = 1;
-}
-
-message TokenResponse {
-    string token = 1; // 返回最终使用的 token
 }

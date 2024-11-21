@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/acd19ml/TalentRank/apps/llm"
 	"log"
 	"sync"
+
+	"github.com/acd19ml/TalentRank/apps/llm"
+	"google.golang.org/grpc"
 
 	"github.com/acd19ml/TalentRank/apps"
 	"github.com/acd19ml/TalentRank/apps/git"
@@ -109,148 +111,123 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 		return nil, errors.New("username is empty in userins")
 	}
 
-	var wg sync.WaitGroup
-	mu := sync.Mutex{}
-	errCh := make(chan error, 11) // 用于捕获错误
+	// 获取用户的所有仓库列表
+	repoListResp, err := s.svc.GetRepositories(ctx, &git.GetUsernameRequest{Username: username})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repositories: %w", err)
+	}
+	repoList := repoListResp.Result
+	if len(repoList) == 0 {
+		return nil, fmt.Errorf("no repositories found for user: %s", username)
+	}
 
-	// 定义结果 map
-	starsByRepo, forksByRepo, dependentsByRepo := map[string]int32{}, map[string]int32{}, map[string]int32{}
-	totalCommitsByRepo, totalIssuesByRepo := map[string][]int32{}, map[string]int32{}
-	userIssuesByRepo, totalPRsByRepo, userPRsByRepo := map[string]int32{}, map[string]int32{}, map[string]int32{}
-	totalReviewsByRepo, userReviewsByRepo := map[string]int32{}, map[string]int32{}
+	// 初始化结果和错误存储
+	repoData := make(map[string]*user.Repo, len(repoList))
+	errorCh := make(chan error, len(repoList)*11+1) // 捕获所有错误
 
-	req := &git.GetUsernameRequest{Username: username}
-
-	// 启动 goroutines 获取每个仓库信息
-	wg.Add(11)
-
+	// 推断用户位置
 	go func() {
-		defer wg.Done()
-
 		if err := s.InferUserLocationWithLLM(ctx, userins); err != nil {
-			errCh <- fmt.Errorf("failed to infer user location: %w", err)
-		}
-
-	}()
-
-	go func() {
-		defer wg.Done()
-		if result, err := s.svc.GetStarsByRepo(ctx, req); err == nil {
-			mu.Lock()
-			starsByRepo = result.RepoMap
-			mu.Unlock()
-		} else {
-			errCh <- fmt.Errorf("failed to get stars by repo: %w", err)
+			errorCh <- fmt.Errorf("failed to infer user location with LLM: %w", err)
 		}
 	}()
 
-	go func() {
-		defer wg.Done()
-		if result, err := s.svc.GetForksByRepo(ctx, req); err == nil {
-			mu.Lock()
-			forksByRepo = result.RepoMap
-			mu.Unlock()
-		} else {
-			errCh <- fmt.Errorf("failed to get forks by repo: %w", err)
-		}
-	}()
+	// 使用 goroutine 池并发处理每个仓库
+	var wg sync.WaitGroup
+	repoCh := make(chan string, len(repoList)) // 用于调度仓库
 
-	go func() {
-		defer wg.Done()
-		if result, err := s.svc.GetDependentRepositoriesByRepo(ctx, req); err == nil {
-			mu.Lock()
-			dependentsByRepo = result.RepoMap
-			mu.Unlock()
-		} else {
-			errCh <- fmt.Errorf("failed to get dependents by repo: %w", err)
-		}
-	}()
+	// 将仓库名发送到 channel 中
+	for _, repo := range repoList {
+		repoCh <- repo
+	}
+	close(repoCh)
 
-	go func() {
-		defer wg.Done()
-		if result, err := s.svc.GetLineChangesByRepo(ctx, req); err == nil {
-			mu.Lock()
-			for repoName, changes := range result.RepoChanges {
-				totalCommitsByRepo[repoName] = []int32{changes.TotalChanges, changes.UserChanges, changes.TotalCommits, changes.UserCommits}
+	// 定义 worker 处理逻辑
+	worker := func() {
+		for repoName := range repoCh {
+			repoInfo := &user.Repo{
+				User_id: userins.Id,
+				Repo:    repoName,
 			}
-			mu.Unlock()
-		} else {
-			errCh <- fmt.Errorf("failed to get line changes by repo: %w", err)
-		}
-	}()
+			repoRequest := &git.RepoRequest{
+				Owner:    username,
+				RepoName: repoName,
+			}
 
-	go func() {
-		defer wg.Done()
-		if result, err := s.svc.GetTotalIssuesByRepo(ctx, req); err == nil {
-			mu.Lock()
-			totalIssuesByRepo = result.RepoMap
-			mu.Unlock()
-		} else {
-			errCh <- fmt.Errorf("failed to get total issues by repo: %w", err)
-		}
-	}()
+			// 包装所有 RPC 调用函数
+			wrappedFuncs := map[string]func(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error){
+				"stars":             wrapRPC(s.svc.GetStarsByRepo),
+				"forks":             wrapRPC(s.svc.GetForksByRepo),
+				"dependents":        wrapRPC(s.svc.GetDependentRepositoriesByRepo),
+				"totalIssues":       wrapRPC(s.svc.GetTotalIssuesByRepo),
+				"userIssues":        wrapRPC(s.svc.GetUserSolvedIssuesByRepo),
+				"totalPullRequests": wrapRPC(s.svc.GetTotalPullRequestsByRepo),
+				"userPullRequests":  wrapRPC(s.svc.GetUserMergedPullRequestsByRepo),
+				"totalCodeReviews":  wrapRPC(s.svc.GetTotalCodeReviewsByRepo),
+				"userCodeReviews":   wrapRPC(s.svc.GetUserCodeReviewsByRepo),
+			}
 
-	go func() {
-		defer wg.Done()
-		if result, err := s.svc.GetUserSolvedIssuesByRepo(ctx, req); err == nil {
-			mu.Lock()
-			userIssuesByRepo = result.RepoMap
-			mu.Unlock()
-		} else {
-			errCh <- fmt.Errorf("failed to get user solved issues by repo: %w", err)
-		}
-	}()
+			// 处理每个调用
+			for name, fetchFunc := range wrappedFuncs {
+				resp, err := fetchFunc(ctx, repoRequest)
+				if err != nil {
+					errorCh <- fmt.Errorf("failed to get %s for repo %s: %w", name, repoName, err)
+					continue
+				}
 
-	go func() {
-		defer wg.Done()
-		if result, err := s.svc.GetTotalPullRequestsByRepo(ctx, req); err == nil {
-			mu.Lock()
-			totalPRsByRepo = result.RepoMap
-			mu.Unlock()
-		} else {
-			errCh <- fmt.Errorf("failed to get total pull requests by repo: %w", err)
-		}
-	}()
+				switch name {
+				case "stars":
+					repoInfo.Star = int(resp.Result)
+				case "forks":
+					repoInfo.Fork = int(resp.Result)
+				case "dependents":
+					repoInfo.Dependent = int(resp.Result)
+				case "totalIssues":
+					repoInfo.IssueTotal = int(resp.Result)
+				case "userIssues":
+					repoInfo.Issue = int(resp.Result)
+				case "totalPullRequests":
+					repoInfo.PullRequestTotal = int(resp.Result)
+				case "userPullRequests":
+					repoInfo.PullRequest = int(resp.Result)
+				case "totalCodeReviews":
+					repoInfo.CodeReviewTotal = int(resp.Result)
+				case "userCodeReviews":
+					repoInfo.CodeReview = int(resp.Result)
+				}
+			}
 
-	go func() {
-		defer wg.Done()
-		if result, err := s.svc.GetUserMergedPullRequestsByRepo(ctx, req); err == nil {
-			mu.Lock()
-			userPRsByRepo = result.RepoMap
-			mu.Unlock()
-		} else {
-			errCh <- fmt.Errorf("failed to get user merged pull requests by repo: %w", err)
-		}
-	}()
+			// 获取增删行数和提交信息
+			resp, err := s.svc.GetLineChangesCommitsByRepo(ctx, repoRequest)
+			if err == nil {
+				repoInfo.LineChange = int(resp.UserChanges)
+				repoInfo.LineChangeTotal = int(resp.TotalChanges)
+				repoInfo.Commits = int(resp.UserCommits)
+				repoInfo.CommitsTotal = int(resp.TotalCommits)
+			} else {
+				errorCh <- fmt.Errorf("failed to get line changes/commits for repo %s: %w", repoName, err)
+			}
 
-	go func() {
-		defer wg.Done()
-		if result, err := s.svc.GetTotalCodeReviewsByRepo(ctx, req); err == nil {
-			mu.Lock()
-			totalReviewsByRepo = result.RepoMap
-			mu.Unlock()
-		} else {
-			errCh <- fmt.Errorf("failed to get total code reviews by repo: %w", err)
+			// 注入默认值并存储
+			repoInfo.InjectDefault()
+			repoData[repoName] = repoInfo
 		}
-	}()
+		wg.Done()
+	}
 
-	go func() {
-		defer wg.Done()
-		if result, err := s.svc.GetUserCodeReviewsByRepo(ctx, req); err == nil {
-			mu.Lock()
-			userReviewsByRepo = result.RepoMap
-			mu.Unlock()
-		} else {
-			errCh <- fmt.Errorf("failed to get user code reviews by repo: %w", err)
-		}
-	}()
+	// 启动 worker 池
+	numWorkers := 10 // 可根据实际情况调整
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go worker()
+	}
 
-	// 等待所有 goroutine 完成
+	// 等待所有 worker 完成
 	wg.Wait()
-	close(errCh)
+	close(errorCh)
 
 	// 检查是否有错误
-	for e := range errCh {
+	for e := range errorCh {
 		if e != nil {
 			log.Printf("Error occurred during repository construction: %v", e)
 			return nil, e
@@ -259,31 +236,8 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	// 构建Repo列表
 	var repos []*user.Repo
-	for repoName := range starsByRepo {
-		if len(totalCommitsByRepo[repoName]) < 4 {
-			log.Printf("Warning: Skipping repo %s due to insufficient data in totalCommitsByRepo", repoName)
-			totalCommitsByRepo[repoName] = []int32{0, 0, 0, 0}
-		}
-
-		repo := &user.Repo{
-			User_id:          userins.Id,
-			Repo:             repoName,
-			Star:             int(starsByRepo[repoName]),
-			Fork:             int(forksByRepo[repoName]),
-			Dependent:        int(dependentsByRepo[repoName]),
-			Commits:          int(totalCommitsByRepo[repoName][3]),
-			CommitsTotal:     int(totalCommitsByRepo[repoName][2]),
-			Issue:            int(userIssuesByRepo[repoName]),
-			IssueTotal:       int(totalIssuesByRepo[repoName]),
-			PullRequest:      int(userPRsByRepo[repoName]),
-			PullRequestTotal: int(totalPRsByRepo[repoName]),
-			CodeReview:       int(userReviewsByRepo[repoName]),
-			CodeReviewTotal:  int(totalReviewsByRepo[repoName]),
-			LineChange:       int(totalCommitsByRepo[repoName][1]),
-			LineChangeTotal:  int(totalCommitsByRepo[repoName][0]),
-		}
-		repo.InjectDefault()
-		repos = append(repos, repo)
+	for _, repoInfo := range repoData {
+		repos = append(repos, repoInfo)
 	}
 
 	userRepos := &user.UserRepos{
@@ -291,6 +245,7 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 		Repos: repos,
 	}
 
+	// 计算总体评分
 	if err = calculateOverallScore(userRepos); err != nil {
 		return nil, fmt.Errorf("failed to calculate overall score: %w", err)
 	}
@@ -384,7 +339,7 @@ func (s *ServiceImpl) ConstructUser(ctx context.Context, username string) (*user
 			return
 		}
 		mu.Lock()
-		user.Organizations = orgsResp.Organizations
+		user.Organizations = orgsResp.Result
 		mu.Unlock()
 	}()
 
@@ -609,4 +564,11 @@ func (s *ServiceImpl) InferUserLocationWithLLM(ctx context.Context, userins *use
 	}
 
 	return nil
+}
+
+// wrapRPC 包装带 grpc.CallOption 的 RPC 函数，忽略可选参数
+func wrapRPC[T any](rpcFunc func(ctx context.Context, req *T, opts ...grpc.CallOption) (*git.IntResponse, error)) func(ctx context.Context, req *T) (*git.IntResponse, error) {
+	return func(ctx context.Context, req *T) (*git.IntResponse, error) {
+		return rpcFunc(ctx, req) // 忽略 opts
+	}
 }

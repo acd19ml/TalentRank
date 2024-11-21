@@ -22,70 +22,6 @@ var (
 	wg    sync.WaitGroup
 )
 
-// GetRepositories gRPC 实现：获取用户所有仓库名称，使用缓存
-func (s *Service) GetRepositories(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoResponse, error) {
-
-	if err := s.initCache(ctx, req.Username); err != nil {
-		return nil, err
-	}
-
-	return &git.RepoResponse{Repos: s.reposCache}, nil
-}
-
-func (s *Service) initCache(ctx context.Context, username string) error {
-	s.cacheMutex.Lock()
-	defer s.cacheMutex.Unlock()
-
-	// 如果缓存已经存在并且与当前用户名匹配，跳过初始化
-	if s.cacheUsername == username && len(s.reposCache) > 0 {
-		return nil
-	}
-
-	// 调用 fetchRepositories 并缓存结果
-	reposList, err := s.fetchRepositories(ctx, username)
-	if err != nil {
-		return err
-	}
-	s.reposCache = reposList
-	s.cacheUsername = username
-	return nil
-}
-
-// fetchRepositories 获取用户的所有仓库名称
-func (s *Service) fetchRepositories(ctx context.Context, username string) ([]string, error) {
-
-	client := s.getClientFromContext(ctx)
-
-	var reposList []string
-	opts := &github.RepositoryListOptions{
-		ListOptions: github.ListOptions{PerPage: 50},
-	}
-
-	for {
-		repos, resp, err := client.Repositories.List(ctx, username, opts)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, repo := range repos {
-			isContributor, err := s.checkIfUserIsContributor(ctx, username, repo.GetOwner().GetLogin(), repo.GetName())
-			if err != nil {
-				return nil, fmt.Errorf("failed to check if user is a contributor: %v", err)
-			}
-			if isContributor {
-				reposList = append(reposList, repo.GetName())
-			}
-		}
-
-		if resp.NextPage == 0 {
-			break
-		}
-		opts.Page = resp.NextPage
-	}
-
-	return reposList, nil
-}
-
 // checkIfUserIsContributor 检查用户是否为仓库的贡献者
 func (s *Service) checkIfUserIsContributor(ctx context.Context, username, owner, repo string) (bool, error) {
 	client := s.getClientFromContext(ctx)
@@ -101,6 +37,41 @@ func (s *Service) checkIfUserIsContributor(ctx context.Context, username, owner,
 	}
 
 	return false, nil
+}
+
+// GetRepositories gRPC 实现：获取用户所有仓库名称
+func (s *Service) GetRepositories(ctx context.Context, req *git.GetUsernameRequest) (*git.StringListResponse, error) {
+
+	client := s.getClientFromContext(ctx)
+
+	var reposList []string
+	opts := &github.RepositoryListOptions{
+		ListOptions: github.ListOptions{PerPage: 50},
+	}
+
+	for {
+		repos, resp, err := client.Repositories.List(ctx, req.Username, opts)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, repo := range repos {
+			isContributor, err := s.checkIfUserIsContributor(ctx, req.Username, repo.GetOwner().GetLogin(), repo.GetName())
+			if err != nil {
+				return nil, fmt.Errorf("failed to check if user is a contributor: %v", err)
+			}
+			if isContributor {
+				reposList = append(reposList, repo.GetName())
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	return &git.StringListResponse{Result: reposList}, nil
 }
 
 func (s *Service) GetUser(ctx context.Context, req *git.GetUsernameRequest) (*git.UserResponse, error) {
@@ -163,7 +134,7 @@ func (s *Service) GetBio(ctx context.Context, username *git.GetUsernameRequest) 
 	return &git.StringResponse{Result: cleanedBio}, nil
 }
 
-func (s *Service) GetOrganizations(ctx context.Context, req *git.GetUsernameRequest) (*git.OrgListResponse, error) {
+func (s *Service) GetOrganizations(ctx context.Context, req *git.GetUsernameRequest) (*git.StringListResponse, error) {
 	var orgsList []string
 	opts := &github.ListOptions{PerPage: 50} // 设置分页参数
 
@@ -186,7 +157,7 @@ func (s *Service) GetOrganizations(ctx context.Context, req *git.GetUsernameRequ
 		opts.Page = resp.NextPage
 	}
 
-	return &git.OrgListResponse{Organizations: orgsList}, nil
+	return &git.StringListResponse{Result: orgsList}, nil
 }
 
 func cleanInvalidUTF8(input string) string {
@@ -217,7 +188,7 @@ func (s *Service) GetReadme(ctx context.Context, req *git.GetReadmeRequest) (*gi
 	}
 
 	var contents string
-	for i, repo := range repos.Repos {
+	for i, repo := range repos.Result {
 		if i >= int(req.RepoLimit) {
 			break
 		}
@@ -274,7 +245,7 @@ func (s *Service) GetCommits(ctx context.Context, req *git.GetCommitsRequest) (*
 
 	var allCommits string
 
-	for i, repo := range repos.Repos {
+	for i, repo := range repos.Result {
 		if i >= int(req.RepoLimit) {
 			break
 		}
@@ -335,7 +306,7 @@ func (s *Service) GetFollowers(ctx context.Context, req *git.GetUsernameRequest)
 
 }
 
-func (s *Service) GetRepoStars(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
+func (s *Service) GetStarsByRepo(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
 	client := s.getClientFromContext(ctx)
 	// 获取指定仓库的信息
 	repo, _, err := client.Repositories.Get(ctx, req.Owner, req.RepoName)
@@ -348,7 +319,7 @@ func (s *Service) GetRepoStars(ctx context.Context, req *git.RepoRequest) (*git.
 }
 
 // 返回单个fork数量
-func (s *Service) GetRepoForks(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
+func (s *Service) GetForksByRepo(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
 	client := s.getClientFromContext(ctx)
 	// 获取指定仓库的信息
 	repo, _, err := client.Repositories.Get(ctx, req.Owner, req.RepoName)
@@ -360,447 +331,242 @@ func (s *Service) GetRepoForks(ctx context.Context, req *git.RepoRequest) (*git.
 	return &git.IntResponse{Result: int32(repo.GetForksCount())}, nil
 }
 
-func (s *Service) GetStarsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
-	// 初始化一个 map，用于存储仓库名和 stars 数量
-	repoStarsMap := make(map[string]int32)
-
-	// 获取该用户的所有仓库名称
-	repos, err := s.GetRepositories(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	// 遍历每个仓库，并并发获取 star 数量
-	for _, repoName := range repos.Repos {
-		wg.Add(1)
-		go func(repo string) {
-			defer wg.Done()
-
-			// 调用 GetRepoStars 获取当前仓库的 star 数量
-			starsResp, err := s.GetRepoStars(ctx, &git.RepoRequest{Owner: req.Username, RepoName: repo})
-			if err != nil {
-				return // 跳过出错的仓库
-			}
-
-			// 使用互斥锁安全地将结果添加到 map 中
-			mutex.Lock()
-			repoStarsMap[repo] = starsResp.Result
-			mutex.Unlock()
-		}(repoName)
-	}
-
-	// 等待所有 goroutine 完成
-	wg.Wait()
-
-	return &git.RepoIntMapResponse{RepoMap: repoStarsMap}, nil
-}
-
-// GetForksByRepo 获取指定用户的所有仓库 fork 数量
-func (s *Service) GetForksByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
-	repoForksMap := make(map[string]int32)
-
-	repos, err := s.GetRepositories(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, repoName := range repos.Repos {
-		wg.Add(1)
-		go func(repo string) {
-			defer wg.Done()
-			forksResp, err := s.GetRepoForks(ctx, &git.RepoRequest{Owner: req.Username, RepoName: repo})
-			if err != nil {
-				return
-			}
-			mutex.Lock()
-			repoForksMap[repo] = forksResp.Result
-			mutex.Unlock()
-		}(repoName)
-	}
-
-	wg.Wait()
-	return &git.RepoIntMapResponse{RepoMap: repoForksMap}, nil
-}
-
 // GetTotalCommitsByRepo 获取指定用户的所有仓库的提交总数
-func (s *Service) GetTotalCommitsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
-	repoCommitsCount := make(map[string]int32)
+func (s *Service) GetTotalCommitsByRepo(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
 
-	repos, err := s.GetRepositories(ctx, req)
+	url := fmt.Sprintf("https://github.com/%s/%s", req.Owner, req.RepoName)
+	resp, err := http.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get repositories for user %s: %w", req.Username, err)
+		log.Printf("failed to fetch repo page for %s: %v", req.RepoName, err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		log.Printf("failed to parse HTML for repo %s: %v", req.RepoName, err)
+		return nil, err
 	}
 
-	for _, repo := range repos.Repos {
-		wg.Add(1)
-		go func(repo string) {
-			defer wg.Done()
-
-			url := fmt.Sprintf("https://github.com/%s/%s", req.Username, repo)
-			resp, err := http.Get(url)
-			if err != nil {
-				log.Printf("failed to fetch repo page for %s: %v", repo, err)
-				return
+	var commitCount int32
+	doc.Find("span[data-component='text'] .fgColor-default").Each(func(i int, s *goquery.Selection) {
+		text := strings.TrimSpace(s.Text())
+		parts := strings.Fields(text)
+		if len(parts) > 0 {
+			countStr := strings.ReplaceAll(parts[0], ",", "")
+			count, err := strconv.Atoi(countStr)
+			if err == nil {
+				commitCount = int32(count)
 			}
-			defer resp.Body.Close()
+		}
+	})
 
-			doc, err := goquery.NewDocumentFromReader(resp.Body)
-			if err != nil {
-				log.Printf("failed to parse HTML for repo %s: %v", repo, err)
-				return
-			}
-
-			var commitCount int32
-			doc.Find("span[data-component='text'] .fgColor-default").Each(func(i int, s *goquery.Selection) {
-				text := strings.TrimSpace(s.Text())
-				parts := strings.Fields(text)
-				if len(parts) > 0 {
-					countStr := strings.ReplaceAll(parts[0], ",", "")
-					count, err := strconv.Atoi(countStr)
-					if err == nil {
-						commitCount = int32(count)
-					}
-				}
-			})
-
-			mutex.Lock()
-			repoCommitsCount[repo] = commitCount
-			mutex.Unlock()
-		}(repo)
-	}
-
-	wg.Wait()
-	return &git.RepoIntMapResponse{RepoMap: repoCommitsCount}, nil
+	return &git.IntResponse{Result: commitCount}, nil
 }
 
-// GetUserCommitsByRepo 获取指定用户在所有仓库中的提交数量
-func (s *Service) GetUserCommitsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+// GetUserCommitsByRepo 获取指定用户指定repo的提交数量
+func (s *Service) GetUserCommitsByRepo(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
 	client := s.getClientFromContext(ctx)
-	userCommitsCount := make(map[string]int32)
 
-	repos, err := s.GetRepositories(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get repositories for user %s: %w", req.Username, err)
+	opts := &github.CommitsListOptions{
+		Author:      req.Owner,
+		ListOptions: github.ListOptions{PerPage: 100},
 	}
 
-	for _, repo := range repos.Repos {
-		wg.Add(1)
-		go func(repo string) {
-			defer wg.Done()
-
-			opts := &github.CommitsListOptions{
-				Author:      req.Username,
-				ListOptions: github.ListOptions{PerPage: 100},
-			}
-
-			var userCommits int32
-			for {
-				commits, resp, err := client.Repositories.ListCommits(ctx, req.Username, repo, opts)
-				if err != nil {
-					log.Printf("failed to get commits for repo %s by user %s: %v", repo, req.Username, err)
-					return
-				}
-				userCommits += int32(len(commits))
-				if resp.NextPage == 0 {
-					break
-				}
-				opts.Page = resp.NextPage
-			}
-
-			mutex.Lock()
-			userCommitsCount[repo] = userCommits
-			mutex.Unlock()
-		}(repo)
+	var userCommits int32
+	for {
+		commits, resp, err := client.Repositories.ListCommits(ctx, req.Owner, req.RepoName, opts)
+		if err != nil {
+			log.Printf("failed to get commits for repo %s by user %s: %v", req.RepoName, req.Owner, err)
+			return nil, err
+		}
+		userCommits += int32(len(commits))
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
 
-	wg.Wait()
-	return &git.RepoIntMapResponse{RepoMap: userCommitsCount}, nil
+	return &git.IntResponse{Result: userCommits}, nil
 }
 
 // GetTotalIssuesByRepo 获取指定用户的所有仓库的总 issues 数量
-func (s *Service) GetTotalIssuesByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetTotalIssuesByRepo(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
 	client := s.getClientFromContext(ctx)
-	issuesCount := make(map[string]int32)
 
-	repos, err := s.GetRepositories(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get repositories for user %s: %w", req.Username, err)
+	opts := &github.IssueListByRepoOptions{
+		State:       "closed",
+		ListOptions: github.ListOptions{PerPage: 100},
 	}
 
-	for _, repo := range repos.Repos {
-		wg.Add(1)
-		go func(repo string) {
-			defer wg.Done()
-
-			opts := &github.IssueListByRepoOptions{
-				State:       "closed",
-				ListOptions: github.ListOptions{PerPage: 100},
-			}
-
-			var totalIssues int32
-			for {
-				issues, resp, err := client.Issues.ListByRepo(ctx, req.Username, repo, opts)
-				if err != nil {
-					return
-				}
-				totalIssues += int32(len(issues))
-				if resp.NextPage == 0 {
-					break
-				}
-				opts.Page = resp.NextPage
-			}
-
-			mutex.Lock()
-			issuesCount[repo] = totalIssues
-			mutex.Unlock()
-		}(repo)
+	var totalIssues int32
+	for {
+		issues, resp, err := client.Issues.ListByRepo(ctx, req.Owner, req.RepoName, opts)
+		if err != nil {
+			return nil, err
+		}
+		totalIssues += int32(len(issues))
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
 
-	wg.Wait()
-	return &git.RepoIntMapResponse{RepoMap: issuesCount}, nil
+	return &git.IntResponse{Result: totalIssues}, nil
 }
 
 // GetUserSolvedIssuesByRepo 获取指定用户解决的所有仓库的 issues 数量
-func (s *Service) GetUserSolvedIssuesByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetUserSolvedIssuesByRepo(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
 	client := s.getClientFromContext(ctx)
-	userIssuesCount := make(map[string]int32)
 
-	repos, err := s.GetRepositories(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get repositories: %w", err)
+	opts := &github.IssueListByRepoOptions{
+		State:       "closed",
+		ListOptions: github.ListOptions{PerPage: 100},
 	}
-
-	for _, repo := range repos.Repos {
-		wg.Add(1)
-		go func(repo string) {
-			defer wg.Done()
-
-			opts := &github.IssueListByRepoOptions{
-				State:       "closed",
-				ListOptions: github.ListOptions{PerPage: 100},
+	userIssues := int32(0)
+	for {
+		issues, resp, err := client.Issues.ListByRepo(ctx, req.Owner, req.RepoName, opts)
+		if err != nil {
+			return nil, err
+		}
+		for _, issue := range issues {
+			if issue.Assignee != nil && issue.Assignee.GetLogin() == req.Owner {
+				userIssues++
 			}
-			userIssues := int32(0)
-			for {
-				issues, resp, err := client.Issues.ListByRepo(ctx, req.Username, repo, opts)
-				if err != nil {
-					return
-				}
-				for _, issue := range issues {
-					if issue.Assignee != nil && issue.Assignee.GetLogin() == req.Username {
-						userIssues++
-					}
-				}
-				if resp.NextPage == 0 {
-					break
-				}
-				opts.Page = resp.NextPage
-			}
-
-			mutex.Lock()
-			userIssuesCount[repo] = userIssues
-			mutex.Unlock()
-		}(repo)
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
 
 	wg.Wait()
-	return &git.RepoIntMapResponse{RepoMap: userIssuesCount}, nil
+	return &git.IntResponse{Result: userIssues}, nil
 }
 
 // GetTotalPullRequestsByRepo 获取指定用户所有仓库的总 PR 数量
-func (s *Service) GetTotalPullRequestsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetTotalPullRequestsByRepo(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
 	client := s.getClientFromContext(ctx)
-	prCount := make(map[string]int32)
 
-	repos, err := s.GetRepositories(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get repositories: %w", err)
+	opts := &github.PullRequestListOptions{
+		State:       "closed",
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+	totalPRs := int32(0)
+	for {
+		prs, resp, err := client.PullRequests.List(ctx, req.Owner, req.RepoName, opts)
+		if err != nil {
+			return nil, err
+		}
+		totalPRs += int32(len(prs))
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
 
-	for _, repo := range repos.Repos {
-		wg.Add(1)
-		go func(repo string) {
-			defer wg.Done()
-
-			opts := &github.PullRequestListOptions{
-				State:       "closed",
-				ListOptions: github.ListOptions{PerPage: 100},
-			}
-			totalPRs := int32(0)
-			for {
-				prs, resp, err := client.PullRequests.List(ctx, req.Username, repo, opts)
-				if err != nil {
-					return
-				}
-				totalPRs += int32(len(prs))
-				if resp.NextPage == 0 {
-					break
-				}
-				opts.Page = resp.NextPage
-			}
-
-			mutex.Lock()
-			prCount[repo] = totalPRs
-			mutex.Unlock()
-		}(repo)
-	}
-
-	wg.Wait()
-	return &git.RepoIntMapResponse{RepoMap: prCount}, nil
+	return &git.IntResponse{Result: totalPRs}, nil
 }
 
 // GetUserMergedPullRequestsByRepo 获取指定用户合并的所有仓库的 PR 数量
-func (s *Service) GetUserMergedPullRequestsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetUserMergedPullRequestsByRepo(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
 	client := s.getClientFromContext(ctx)
-	userPRCount := make(map[string]int32)
 
-	repos, err := s.GetRepositories(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get repositories: %w", err)
+	opts := &github.PullRequestListOptions{
+		State:       "closed",
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+	userPRs := int32(0)
+	for {
+		prs, resp, err := client.PullRequests.List(ctx, req.Owner, req.RepoName, opts)
+		if err != nil {
+			return nil, err
+		}
+		for _, pr := range prs {
+			if pr.User != nil && pr.User.GetLogin() == req.Owner {
+				userPRs++
+			}
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
 
-	for _, repo := range repos.Repos {
-		wg.Add(1)
-		go func(repo string) {
-			defer wg.Done()
-
-			opts := &github.PullRequestListOptions{
-				State:       "closed",
-				ListOptions: github.ListOptions{PerPage: 100},
-			}
-			userPRs := int32(0)
-			for {
-				prs, resp, err := client.PullRequests.List(ctx, req.Username, repo, opts)
-				if err != nil {
-					return
-				}
-				for _, pr := range prs {
-					if pr.User != nil && pr.User.GetLogin() == req.Username {
-						userPRs++
-					}
-				}
-				if resp.NextPage == 0 {
-					break
-				}
-				opts.Page = resp.NextPage
-			}
-
-			mutex.Lock()
-			userPRCount[repo] = userPRs
-			mutex.Unlock()
-		}(repo)
-	}
-
-	wg.Wait()
-	return &git.RepoIntMapResponse{RepoMap: userPRCount}, nil
+	return &git.IntResponse{Result: userPRs}, nil
 }
 
 // GetTotalCodeReviewsByRepo 获取每个仓库的代码审查总数
-func (s *Service) GetTotalCodeReviewsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetTotalCodeReviewsByRepo(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
 	client := s.getClientFromContext(ctx)
-	repos, err := s.GetRepositories(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get repositories for user %s: %w", req.Username, err)
+
+	opts := &github.PullRequestListOptions{
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+	totalReviews := int32(0)
+
+	for {
+		pullRequests, resp, err := client.PullRequests.List(ctx, req.Owner, req.RepoName, opts)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, pr := range pullRequests {
+			reviews, _, err := client.PullRequests.ListReviews(ctx, req.Owner, req.RepoName, pr.GetNumber(), nil)
+			if err != nil {
+				return nil, err
+			}
+			totalReviews += int32(len(reviews))
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
 
-	reviewCount := make(map[string]int32)
-
-	for _, repo := range repos.Repos {
-		wg.Add(1)
-		go func(repo string) {
-			defer wg.Done()
-
-			opts := &github.PullRequestListOptions{
-				ListOptions: github.ListOptions{PerPage: 100},
-			}
-			totalReviews := int32(0)
-
-			for {
-				pullRequests, resp, err := client.PullRequests.List(ctx, req.Username, repo, opts)
-				if err != nil {
-					return
-				}
-
-				for _, pr := range pullRequests {
-					reviews, _, err := client.PullRequests.ListReviews(ctx, req.Username, repo, pr.GetNumber(), nil)
-					if err != nil {
-						return
-					}
-					totalReviews += int32(len(reviews))
-				}
-
-				if resp.NextPage == 0 {
-					break
-				}
-				opts.Page = resp.NextPage
-			}
-
-			mutex.Lock()
-			reviewCount[repo] = totalReviews
-			mutex.Unlock()
-		}(repo)
-	}
-
-	wg.Wait()
-	return &git.RepoIntMapResponse{RepoMap: reviewCount}, nil
+	return &git.IntResponse{Result: totalReviews}, nil
 }
 
 // GetUserCodeReviewsByRepo 获取用户在每个仓库中的代码审查数量
-func (s *Service) GetUserCodeReviewsByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
+func (s *Service) GetUserCodeReviewsByRepo(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
 	client := s.getClientFromContext(ctx)
-	repos, err := s.GetRepositories(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get repositories for user %s: %w", req.Username, err)
+
+	opts := &github.PullRequestListOptions{
+		ListOptions: github.ListOptions{PerPage: 100},
 	}
+	userReviews := int32(0)
 
-	userReviewCount := make(map[string]int32)
+	for {
+		pullRequests, resp, err := client.PullRequests.List(ctx, req.Owner, req.RepoName, opts)
+		if err != nil {
+			return nil, err
+		}
 
-	for _, repo := range repos.Repos {
-		wg.Add(1)
-		go func(repo string) {
-			defer wg.Done()
-
-			opts := &github.PullRequestListOptions{
-				ListOptions: github.ListOptions{PerPage: 100},
-			}
-			userReviews := int32(0)
-
-			for {
-				pullRequests, resp, err := client.PullRequests.List(ctx, req.Username, repo, opts)
-				if err != nil {
-					return
-				}
-
-				for _, pr := range pullRequests {
-					reviews, _, err := client.PullRequests.ListReviews(ctx, req.Username, repo, pr.GetNumber(), nil)
-					if err != nil {
-						return
-					}
-
-					for _, review := range reviews {
-						if review.GetUser().GetLogin() == req.Username {
-							userReviews++
-						}
-					}
-				}
-
-				if resp.NextPage == 0 {
-					break
-				}
-				opts.Page = resp.NextPage
+		for _, pr := range pullRequests {
+			reviews, _, err := client.PullRequests.ListReviews(ctx, req.Owner, req.RepoName, pr.GetNumber(), nil)
+			if err != nil {
+				return nil, err
 			}
 
-			mutex.Lock()
-			userReviewCount[repo] = userReviews
-			mutex.Unlock()
-		}(repo)
+			for _, review := range reviews {
+				if review.GetUser().GetLogin() == req.Owner {
+					userReviews++
+				}
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
 
-	wg.Wait()
-	return &git.RepoIntMapResponse{RepoMap: userReviewCount}, nil
+	return &git.IntResponse{Result: userReviews}, nil
 }
 
-// GetDependentRepositorie 获取仓库被依赖数量
-func GetDependentRepositorie(url string) (*git.IntResponse, error) {
+// GetDependentRepositoriesByRepo 获取仓库被依赖数量
+func getDependentRepositorie(url string) (*git.IntResponse, error) {
 	res, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -832,32 +598,14 @@ func GetDependentRepositorie(url string) (*git.IntResponse, error) {
 }
 
 // GetDependentRepositoriesByRepo 获取每个仓库的依赖数量
-func (s *Service) GetDependentRepositoriesByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoIntMapResponse, error) {
-	repos, err := s.GetRepositories(ctx, req)
+func (s *Service) GetDependentRepositoriesByRepo(ctx context.Context, req *git.RepoRequest) (*git.IntResponse, error) {
+
+	countResp, err := getDependentRepositorie(fmt.Sprintf("https://github.com/%s/%s/network/dependents", req.Owner, req.RepoName))
 	if err != nil {
 		return nil, err
 	}
 
-	repoDependents := make(map[string]int32)
-
-	for _, repo := range repos.Repos {
-		wg.Add(1)
-		go func(repo string) {
-			defer wg.Done()
-
-			countResp, err := GetDependentRepositorie(fmt.Sprintf("https://github.com/%s/%s/network/dependents", req.Username, repo))
-			if err != nil {
-				return // 跳过出错的仓库
-			}
-
-			mutex.Lock()
-			repoDependents[repo] = countResp.Result
-			mutex.Unlock()
-		}(repo)
-	}
-
-	wg.Wait()
-	return &git.RepoIntMapResponse{RepoMap: repoDependents}, nil
+	return countResp, nil
 }
 
 // getLineChanges 获取仓库的总增删行数和指定用户的增删行数，并统计提交次数
@@ -910,37 +658,16 @@ func (s *Service) getLineChanges(ctx context.Context, repoOwner, repoName, usern
 }
 
 // GetLineChangesByRepo 获取用户所有仓库的增删行数信息，包含总提交和用户提交
-func (s *Service) GetLineChangesByRepo(ctx context.Context, req *git.GetUsernameRequest) (*git.RepoLineChangesResponse, error) {
-	repos, err := s.GetRepositories(ctx, req)
+func (s *Service) GetLineChangesCommitsByRepo(ctx context.Context, req *git.RepoRequest) (*git.RepoLineChangesCommitsResponse, error) {
+
+	totalChanges, userChanges, totalCommits, userCommits, err := s.getLineChanges(ctx, req.Owner, req.RepoName, req.Owner)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get repositories: %v", err)
+		return nil, err
 	}
 
-	lineChanges := make(map[string]*git.LineChangeStats)
-
-	for _, repo := range repos.Repos {
-		wg.Add(1)
-		go func(repo string) {
-			defer wg.Done()
-
-			totalChanges, userChanges, totalCommits, userCommits, err := s.getLineChanges(ctx, req.Username, repo, req.Username)
-			if err != nil {
-				return // 跳过出错的仓库
-			}
-
-			lineChangeStats := &git.LineChangeStats{
-				TotalChanges: int32(totalChanges),
-				UserChanges:  int32(userChanges),
-				TotalCommits: int32(totalCommits),
-				UserCommits:  int32(userCommits),
-			}
-
-			mutex.Lock()
-			lineChanges[repo] = lineChangeStats
-			mutex.Unlock()
-		}(repo)
-	}
-
-	wg.Wait()
-	return &git.RepoLineChangesResponse{RepoChanges: lineChanges}, nil
+	return &git.RepoLineChangesCommitsResponse{
+		TotalChanges: int32(totalChanges),
+		UserChanges:  int32(userChanges),
+		TotalCommits: int32(totalCommits),
+		UserCommits:  int32(userCommits)}, nil
 }
