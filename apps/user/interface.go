@@ -11,3 +11,13 @@ type Service interface {
 	GetLocationCounts(context.Context) ([]*GetLocationCountsRequest, error)
 	DeleteUserRepos(context.Context, *DeleteUserReposRequest) (*DeleteUserReposResponse, error)
 }
+
+// 消息生产者接口
+type MessageProducer interface {
+	Produce(ctx context.Context, topic string, message interface{}) error
+}
+
+// 消息消费者接口
+type MessageConsumer interface {
+	Consume(ctx context.Context, topic string) ([]byte, error)
+}

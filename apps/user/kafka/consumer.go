@@ -2,54 +2,35 @@ package kafka
 
 import (
 	"context"
-	"encoding/json"
-	"log"
+	"fmt"
 
 	"github.com/segmentio/kafka-go"
 )
 
-// Consumer 定义 Kafka 消费者
-type Consumer struct {
+type KafkaConsumer struct {
 	reader *kafka.Reader
 }
 
-// NewConsumer 创建 Kafka 消费者实例
-func NewConsumer(brokers []string, groupID, topic string) *Consumer {
-	return &Consumer{
+// NewKafkaConsumer 初始化 Kafka 消费者
+func NewKafkaConsumer(brokers []string, topic string, groupID string) *KafkaConsumer {
+	return &KafkaConsumer{
 		reader: kafka.NewReader(kafka.ReaderConfig{
 			Brokers:  brokers,
-			GroupID:  groupID,
 			Topic:    topic,
+			GroupID:  groupID,
 			MinBytes: 10e3, // 10KB
 			MaxBytes: 10e6, // 10MB
 		}),
 	}
 }
 
-// ListenAndConsume 监听并消费 Kafka 消息
-func (c *Consumer) ListenAndConsume(ctx context.Context, handleMessage func(KafkaMessage)) error {
-	for {
-		// 读取 Kafka 消息
-		msg, err := c.reader.ReadMessage(ctx)
-		if err != nil {
-			log.Printf("Error reading message: %v", err)
-			return err
-		}
-
-		// 解析消息
-		var message KafkaMessage
-		err = json.Unmarshal(msg.Value, &message)
-		if err != nil {
-			log.Printf("Error unmarshalling message: %v", err)
-			continue
-		}
-
-		// 调用消息处理函数
-		handleMessage(message)
+// Consume 实现 MessageConsumer 接口
+func (kc *KafkaConsumer) Consume(ctx context.Context, topic string) ([]byte, error) {
+	msg, err := kc.reader.ReadMessage(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read message from Kafka: %w", err)
 	}
-}
 
-// Close 关闭消费者
-func (c *Consumer) Close() error {
-	return c.reader.Close()
+	// log.Printf("Consumed message from topic %s: %s", topic, string(msg.Value))
+	return msg.Value, nil
 }

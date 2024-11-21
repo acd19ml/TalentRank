@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/acd19ml/TalentRank/apps/git"
 	"github.com/acd19ml/TalentRank/apps/user"
+	"github.com/google/uuid"
 )
 
 func (s *ServiceImpl) CreateUserRepos(ctx context.Context, username string) (*user.UserRepos, error) {
@@ -231,4 +233,132 @@ func (s *ServiceImpl) DeleteUserRepos(ctx context.Context, req *user.DeleteUserR
 	result.Username = username
 
 	return result, nil
+}
+
+func (s *ServiceImpl) SaveRepoDataToDB(ctx context.Context, username, repoName, function string, result interface{}) error {
+	// 获取 user_id，确保 user_id 存在
+	var userID string
+	err := s.Db.QueryRowContext(ctx, "SELECT id FROM user WHERE username = ?", username).Scan(&userID)
+	if err == sql.ErrNoRows {
+		return fmt.Errorf("user not found for username: %s", username)
+	} else if err != nil {
+		return fmt.Errorf("failed to query user_id for username %s: %w", username, err)
+	}
+
+	// 检查是否存在该 repo，若不存在则插入基础数据
+	var repoID string
+	err = s.Db.QueryRowContext(ctx, "SELECT id FROM Repo WHERE user_id = ? AND repo = ?", userID, repoName).Scan(&repoID)
+	if err == sql.ErrNoRows {
+		// 如果 repo 不存在，生成新的 repo_id 并插入基础记录
+		repoID = uuid.New().String()
+		_, err = s.Db.ExecContext(ctx, `
+			INSERT INTO Repo (id, user_id, repo) VALUES (?, ?, ?)
+		`, repoID, userID, repoName)
+		if err != nil {
+			return fmt.Errorf("failed to insert new repo: %w", err)
+		}
+	} else if err != nil {
+		return fmt.Errorf("failed to query repo_id for repo %s: %w", repoName, err)
+	}
+
+	// 根据 function 更新对应的字段
+	switch function {
+	case "GetStarsByRepo":
+		resp := result.(*git.IntResponse)
+		_, err = s.Db.ExecContext(ctx, `
+			UPDATE Repo SET star = ? WHERE id = ?
+		`, resp.Result, repoID)
+
+	case "GetForksByRepo":
+		resp := result.(*git.IntResponse)
+		_, err = s.Db.ExecContext(ctx, `
+			UPDATE Repo SET fork = ? WHERE id = ?
+		`, resp.Result, repoID)
+
+	case "GetTotalIssuesByRepo":
+		resp := result.(*git.IntResponse)
+		_, err = s.Db.ExecContext(ctx, `
+			UPDATE Repo SET issue_total = ? WHERE id = ?
+		`, resp.Result, repoID)
+
+	case "GetUserSolvedIssuesByRepo":
+		resp := result.(*git.IntResponse)
+		_, err = s.Db.ExecContext(ctx, `
+			UPDATE Repo SET issue = ? WHERE id = ?
+		`, resp.Result, repoID)
+
+	case "GetTotalPullRequestsByRepo":
+		resp := result.(*git.IntResponse)
+		_, err = s.Db.ExecContext(ctx, `
+			UPDATE Repo SET pull_request_total = ? WHERE id = ?
+		`, resp.Result, repoID)
+
+	case "GetUserMergedPullRequestsByRepo":
+		resp := result.(*git.IntResponse)
+		_, err = s.Db.ExecContext(ctx, `
+			UPDATE Repo SET pull_request = ? WHERE id = ?
+		`, resp.Result, repoID)
+
+	case "GetTotalCodeReviewsByRepo":
+		resp := result.(*git.IntResponse)
+		_, err = s.Db.ExecContext(ctx, `
+			UPDATE Repo SET code_review_total = ? WHERE id = ?
+		`, resp.Result, repoID)
+
+	case "GetUserCodeReviewsByRepo":
+		resp := result.(*git.IntResponse)
+		_, err = s.Db.ExecContext(ctx, `
+			UPDATE Repo SET code_review = ? WHERE id = ?
+		`, resp.Result, repoID)
+
+	case "GetLineChangesCommitsByRepo":
+		resp := result.(*git.RepoLineChangesCommitsResponse)
+		_, err = s.Db.ExecContext(ctx, `
+			UPDATE Repo 
+			SET line_change = ?, line_change_total = ?, commits = ?, commits_total = ? 
+			WHERE id = ?
+		`, resp.UserChanges, resp.TotalChanges, resp.UserCommits, resp.TotalCommits, repoID)
+
+	case "GetDependentRepositoriesByRepo":
+		resp := result.(*git.IntResponse)
+		_, err = s.Db.ExecContext(ctx, `
+			UPDATE Repo SET dependent = ? WHERE id = ?
+		`, resp.Result, repoID)
+
+	default:
+		return fmt.Errorf("unknown function: %s", function)
+	}
+
+	// 检查是否更新成功
+	if err != nil {
+		return fmt.Errorf("failed to update repo %s for function %s: %w", repoName, function, err)
+	}
+
+	return nil
+}
+
+func (s *ServiceImpl) GetAllUsernamesFromDB(ctx context.Context) ([]string, error) {
+	// 查询所有用户名
+	rows, err := s.Db.QueryContext(ctx, "SELECT username FROM user")
+	if err != nil {
+		return nil, fmt.Errorf("failed to query usernames: %w", err)
+	}
+	defer rows.Close()
+
+	// 保存用户名的切片
+	var usernames []string
+	for rows.Next() {
+		var username string
+		if err := rows.Scan(&username); err != nil {
+			return nil, fmt.Errorf("failed to scan username: %w", err)
+		}
+		usernames = append(usernames, username)
+	}
+
+	// 检查是否有错误
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return usernames, nil
 }

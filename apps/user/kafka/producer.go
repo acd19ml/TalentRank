@@ -3,52 +3,40 @@ package kafka
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
-	"time"
 
 	"github.com/segmentio/kafka-go"
 )
 
-// Producer 定义 Kafka 生产者
-type Producer struct {
+type KafkaProducer struct {
 	writer *kafka.Writer
 }
 
-// NewProducer 创建 Kafka 生产者实例
-func NewProducer(brokers []string, topic string) *Producer {
-	return &Producer{
+// NewKafkaProducer 初始化 Kafka 生产者
+func NewKafkaProducer(brokers []string) *KafkaProducer {
+	return &KafkaProducer{
 		writer: kafka.NewWriter(kafka.WriterConfig{
 			Brokers: brokers,
-			Topic:   topic,
 		}),
 	}
 }
 
-// SendMessage 发送消息到 Kafka
-func (p *Producer) SendMessage(ctx context.Context, message KafkaMessage) error {
-	// 设置消息的时间戳
-	message.Timestamp = time.Now().UTC()
-
-	// 将消息序列化为 JSON
-	value, err := json.Marshal(message)
+// Produce 实现 MessageProducer 接口
+func (kp *KafkaProducer) Produce(ctx context.Context, topic string, message interface{}) error {
+	data, err := json.Marshal(message)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
-	// 发送消息
-	err = p.writer.WriteMessages(ctx, kafka.Message{
-		Value: value,
+	err = kp.writer.WriteMessages(ctx, kafka.Message{
+		Topic: topic,
+		Value: data,
 	})
 	if err != nil {
-		log.Printf("Failed to send message: %v", err)
-		return err
+		return fmt.Errorf("failed to write message to Kafka: %w", err)
 	}
 
-	log.Printf("Message sent: %s", value)
+	log.Printf("Produced message to topic %s: %s", topic, string(data))
 	return nil
-}
-
-// Close 关闭生产者
-func (p *Producer) Close() error {
-	return p.writer.Close()
 }

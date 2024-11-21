@@ -4,22 +4,26 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"time"
 
 	"github.com/acd19ml/TalentRank/apps"
 	"github.com/acd19ml/TalentRank/apps/git"
 	"github.com/acd19ml/TalentRank/apps/llm"
 	"github.com/acd19ml/TalentRank/apps/user"
+	"github.com/acd19ml/TalentRank/apps/user/kafka"
 	"github.com/acd19ml/TalentRank/conf"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
 type ServiceImpl struct {
-	Db      *sql.DB
-	svc     git.GitServiceClient
-	llm     llm.LLMServiceClient
-	gitConn *grpc.ClientConn
-	llmConn *grpc.ClientConn
+	Db       *sql.DB
+	svc      git.GitServiceClient
+	llm      llm.LLMServiceClient
+	gitConn  *grpc.ClientConn
+	llmConn  *grpc.ClientConn
+	Producer user.MessageProducer
+	Consumer user.MessageConsumer
 }
 
 var svcimpl = &ServiceImpl{}
@@ -52,10 +56,22 @@ func (s *ServiceImpl) Config() {
 	s.svc = git.NewGitServiceClient(s.gitConn)
 	s.llm = llm.NewLLMServiceClient(s.llmConn)
 
-	// 启动定时任务
-	go func() {
-		s.StartWeeklyUpdate(s.NewAuthenticatedContext(context.Background()), apps.UpdateInterval)
-	}()
+	// 配置 Kafka 生产者
+	s.Producer = kafka.NewKafkaProducer([]string{"localhost:9092"})
+
+	// 配置 Kafka 消费者
+	s.Consumer = kafka.NewKafkaConsumer([]string{"localhost:9092"}, "repo_api_tasks", "my-group")
+	log.Println("Kafka Broker listening on localhost:9092")
+
+	// 初始化速率限制器
+	rateLimiter := NewRateLimiter(10, time.Second) // 每秒最多处理 10 条消息
+
+	// 启动生产者协程
+	go s.StartProducer(context.Background())
+
+	// 启动消费者协程
+	go s.StartConsumer(context.Background(), rateLimiter)
+
 }
 
 // SetLLMClient 提供一个用于测试的 Setter 方法

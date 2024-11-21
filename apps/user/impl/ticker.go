@@ -114,29 +114,29 @@ func (s *ServiceImpl) DeleteObsoleteRepos(ctx context.Context, oldRepos, newRepo
 	return nil
 }
 
-func (s *ServiceImpl) GetAllUsernamesFromDB(ctx context.Context) ([]string, error) {
-	rows, err := s.Db.QueryContext(ctx, "SELECT username FROM user")
-	if err != nil {
-		return nil, fmt.Errorf("failed to query usernames: %w", err)
-	}
-	defer rows.Close()
+// func (s *ServiceImpl) GetAllUsernamesFromDB(ctx context.Context) ([]string, error) {
+// 	rows, err := s.Db.QueryContext(ctx, "SELECT username FROM user")
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to query usernames: %w", err)
+// 	}
+// 	defer rows.Close()
 
-	var usernames []string
-	for rows.Next() {
-		var username string
-		if err := rows.Scan(&username); err != nil {
-			return nil, fmt.Errorf("failed to scan username: %w", err)
-		}
-		log.Printf("Found username: %s\n", username)
-		usernames = append(usernames, username)
-	}
+// 	var usernames []string
+// 	for rows.Next() {
+// 		var username string
+// 		if err := rows.Scan(&username); err != nil {
+// 			return nil, fmt.Errorf("failed to scan username: %w", err)
+// 		}
+// 		log.Printf("Found username: %s\n", username)
+// 		usernames = append(usernames, username)
+// 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating over rows: %w", err)
-	}
+// 	if err := rows.Err(); err != nil {
+// 		return nil, fmt.Errorf("error iterating over rows: %w", err)
+// 	}
 
-	return usernames, nil
-}
+// 	return usernames, nil
+// }
 
 func (s *ServiceImpl) FetchUserReposFromDB(ctx context.Context, username string) (*user.UserRepos, error) {
 	// 获取用户信息
