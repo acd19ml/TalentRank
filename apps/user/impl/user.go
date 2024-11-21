@@ -397,7 +397,7 @@ func (s *ServiceImpl) FetchReposFromDB(ctx context.Context, username string) ([]
 	// 使用 user_id 查询 repo 表中的 repo 字段
 	rows, err := s.Db.QueryContext(ctx, "SELECT repo FROM repo WHERE user_id = ?", userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query repositories for user ID %d: %w", userID, err)
+		return nil, fmt.Errorf("failed to query repositories for user ID %s: %w", userID, err)
 	}
 	defer rows.Close()
 
