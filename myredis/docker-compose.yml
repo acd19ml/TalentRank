@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:latest
+    container_name: redis
+    environment:
+      - REDIS_PASSWORD=""   # 如果需要密码，设置密码
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - redis-network
+
+volumes:
+  redis-data:
+    driver: local
+
+networks:
+  redis-network:
+    driver: bridge
