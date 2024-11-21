@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/acd19ml/TalentRank/apps/git"
 	"github.com/acd19ml/TalentRank/apps/user"
@@ -361,4 +362,241 @@ func (s *ServiceImpl) GetAllUsernamesFromDB(ctx context.Context) ([]string, erro
 	}
 
 	return usernames, nil
+}
+
+// FetchUserFromDB 从数据库中获取用户信息
+func (s *ServiceImpl) FetchUserFromDB(ctx context.Context, username string) (*user.User, error) {
+	row := s.Db.QueryRowContext(ctx, "SELECT * FROM user WHERE username = ?", username)
+	var userIns user.User
+	var orgsJSON []byte // 用于存储 organizations 字段的 JSON 数据
+
+	if err := row.Scan(&userIns.Id, &userIns.Username, &userIns.Name, &userIns.Company, &userIns.Blog, &userIns.Location,
+		&userIns.Email, &userIns.Bio, &userIns.Followers, &orgsJSON, &userIns.Readme,
+		&userIns.Commits, &userIns.Score, &userIns.PossibleNation, &userIns.ConfidenceLevel); err != nil {
+		return nil, fmt.Errorf("failed to scan user data: %w", err)
+	}
+
+	// 将 organizations 从 JSON 字符串解析为字符串数组
+	if err := json.Unmarshal(orgsJSON, &userIns.Organizations); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal organizations for user %s: %w", userIns.Id, err)
+	}
+
+	return &userIns, nil
+}
+
+// FetchReposFromDB 从数据库中获取用户的仓库名称
+func (s *ServiceImpl) FetchReposFromDB(ctx context.Context, username string) ([]string, error) {
+	rows, err := s.Db.QueryContext(ctx, "SELECT repo FROM repo WHERE username = ?", username) // 只查询 repo 列
+	if err != nil {
+		return nil, fmt.Errorf("failed to query user repositories: %w", err)
+	}
+	defer rows.Close()
+
+	var repoNames []string
+	for rows.Next() {
+		var repoName string
+		if err := rows.Scan(&repoName); err != nil {
+			return nil, fmt.Errorf("failed to scan repo name: %w", err)
+		}
+		repoNames = append(repoNames, repoName)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over repository rows: %w", err)
+	}
+
+	return repoNames, nil
+}
+
+// HasDifferencesUser 比较两个用户的基本信息是否存在差异
+func HasDifferencesUser(oldUser, newUser *user.User) bool {
+	return oldUser.Name != newUser.Name ||
+		oldUser.Company != newUser.Company ||
+		oldUser.Location != newUser.Location ||
+		oldUser.Followers != newUser.Followers ||
+		oldUser.PossibleNation != newUser.PossibleNation
+}
+
+func HasInvalidRepos(oldRepos, newRepos []string) []string {
+	// 创建一个 map 来存储 newRepos 中的所有仓库
+	newRepoSet := make(map[string]struct{})
+	for _, repo := range newRepos {
+		newRepoSet[repo] = struct{}{}
+	}
+
+	// 遍历 oldRepos，查找不在 newRepos 中的仓库
+	var invalidRepos []string
+	for _, repo := range oldRepos {
+		if _, exists := newRepoSet[repo]; !exists {
+			invalidRepos = append(invalidRepos, repo)
+		}
+	}
+
+	return invalidRepos
+}
+
+func (s *ServiceImpl) DeleteInvalidReposFromDB(ctx context.Context, repos []string) error {
+	if len(repos) == 0 {
+		return nil // 如果没有要删除的仓库，直接返回
+	}
+
+	// 构建动态查询语句
+	placeholders := make([]string, len(repos))
+	args := make([]interface{}, len(repos))
+	for i, repo := range repos {
+		placeholders[i] = "?"
+		args[i] = repo
+	}
+	query := fmt.Sprintf("DELETE FROM repo WHERE repo IN (%s)", strings.Join(placeholders, ","))
+
+	// 执行删除操作
+	_, err := s.Db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to delete invalid repos: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteOrphanedRepos 删除user_id在user表中没有匹配记录的repo记录
+func (s *ServiceImpl) DeleteOrphanedRepos(ctx context.Context) error {
+	_, err := s.Db.ExecContext(ctx, `
+		DELETE FROM repo
+		WHERE user_id NOT IN (SELECT id FROM user)
+	`)
+	if err != nil {
+		return err
+	}
+	// log.Println("Successfully deleted orphaned repos")
+	return nil
+}
+
+// RemoveDuplicateUsers 删除重复的username，只保留其中一条记录
+func (s *ServiceImpl) RemoveDuplicateUsers(ctx context.Context) error {
+	_, err := s.Db.ExecContext(ctx, `
+		WITH UserDuplicates AS (
+			SELECT id,
+			       ROW_NUMBER() OVER (PARTITION BY username ORDER BY id) AS row_num
+			FROM user
+		)
+		DELETE FROM user
+		WHERE id IN (
+			SELECT id
+			FROM UserDuplicates
+			WHERE row_num > 1
+		)
+	`)
+	if err != nil {
+		return err
+	}
+	// log.Println("Successfully removed duplicate users")
+	return nil
+}
+
+func (s *ServiceImpl) SaveUserDataToDB(ctx context.Context, username string, field string, value interface{}) error {
+	// 准备更新语句
+	var updateQuery string
+	var args []interface{}
+
+	switch field {
+	case "GetName":
+		updateQuery = "UPDATE User SET name = ? WHERE username = ?"
+		args = append(args, value, username)
+	case "GetCompany":
+		updateQuery = "UPDATE User SET company = ? WHERE username = ?"
+		args = append(args, value, username)
+	case "GetLocation":
+		updateQuery = "UPDATE User SET location = ? WHERE username = ?"
+		args = append(args, value, username)
+	case "GetEmail":
+		updateQuery = "UPDATE User SET email = ? WHERE username = ?"
+		args = append(args, value, username)
+	case "GetBio":
+		updateQuery = "UPDATE User SET bio = ? WHERE username = ?"
+		args = append(args, value, username)
+	case "GetOrganizations":
+		// 确保 JSON 格式正确
+		orgsJSON, err := json.Marshal(value)
+		if err != nil {
+			return fmt.Errorf("failed to marshal organizations: %v", err)
+		}
+		updateQuery = "UPDATE User SET organizations = ? WHERE username = ?"
+		args = append(args, orgsJSON, username)
+	case "GetFollowers":
+		updateQuery = "UPDATE User SET followers = ? WHERE username = ?"
+		args = append(args, value, username)
+	default:
+		return fmt.Errorf("unknown field: %s", field)
+	}
+
+	// 执行更新操作
+	_, err := s.Db.ExecContext(ctx, updateQuery, args...)
+	if err != nil {
+		return fmt.Errorf("failed to update user data: %v", err)
+	}
+
+	return nil
+}
+
+func (s *ServiceImpl) FetchUserReposFromDB(ctx context.Context, username string) (*user.UserRepos, error) {
+	// 获取用户信息
+	row := s.Db.QueryRowContext(ctx, "SELECT * FROM user WHERE username = ?", username)
+	var userIns user.User
+	var orgsJSON []byte // 用于存储 organizations 字段的 JSON 数据
+
+	if err := row.Scan(&userIns.Id, &userIns.Username, &userIns.Name, &userIns.Company, &userIns.Blog, &userIns.Location,
+		&userIns.Email, &userIns.Bio, &userIns.Followers, &orgsJSON, &userIns.Readme, // 使用 orgsJSON 作为临时变量
+		&userIns.Commits, &userIns.Score, &userIns.PossibleNation, &userIns.ConfidenceLevel); err != nil {
+		return nil, fmt.Errorf("failed to scan user data: %w", err)
+	}
+
+	// 将 organizations 从 JSON 字符串解析为字符串数组
+	if err := json.Unmarshal(orgsJSON, &userIns.Organizations); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal organizations for user %s: %w", userIns.Id, err)
+	}
+
+	// 获取用户仓库信息
+	rows, err := s.Db.QueryContext(ctx, "SELECT * FROM repo WHERE user_id = ?", userIns.Id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query user repositories: %w", err)
+	}
+	defer rows.Close()
+
+	var repos []*user.Repo
+	for rows.Next() {
+		var repo user.Repo
+		if err := rows.Scan(&repo.Id, &repo.User_id, &repo.Repo, &repo.Star, &repo.Fork, &repo.Dependent, &repo.Commits,
+			&repo.CommitsTotal, &repo.Issue, &repo.IssueTotal, &repo.PullRequest, &repo.PullRequestTotal,
+			&repo.CodeReview, &repo.CodeReviewTotal, &repo.LineChange, &repo.LineChangeTotal); err != nil {
+			return nil, fmt.Errorf("failed to scan repo data: %w", err)
+		}
+		repos = append(repos, &repo)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over repository rows: %w", err)
+	}
+
+	return &user.UserRepos{User: &userIns, Repos: repos}, nil
+}
+
+func (s *ServiceImpl) UpdateUserScore(ctx context.Context, username string, score float64) error {
+
+	// Prepare the statement
+	stmt, err := s.Db.PrepareContext(ctx, UpdateUserScoreSQL)
+	if err != nil {
+		log.Printf("Failed to prepare statement: %v", err)
+		return err
+	}
+	defer stmt.Close()
+
+	// Execute the statement
+	_, err = stmt.ExecContext(ctx, username, score)
+	if err != nil {
+		log.Printf("Failed to execute statement for user %s: %v", username, err)
+		return err
+	}
+
+	log.Printf("Successfully updated score for user %s to %.2f", username, score)
+	return nil
 }

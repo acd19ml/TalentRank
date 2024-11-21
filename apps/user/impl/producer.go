@@ -16,6 +16,9 @@ func (s *ServiceImpl) StartProducer(ctx context.Context) {
 	log.Println("The data update cleanup task will start every 24 hours")
 	defer ticker.Stop()
 
+	s.DeleteOrphanedRepos(ctx)  // 清理孤立的仓库
+	s.RemoveDuplicateUsers(ctx) // 清理重复的用户
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -32,10 +35,57 @@ func (s *ServiceImpl) StartProducer(ctx context.Context) {
 			}
 
 			for _, username := range usernames {
+				// 更新用户相关信息
+				userFunctions := []string{
+					"GetName",
+					"GetCompany",
+					"GetLocation",
+					"GetEmail",
+					"GetBio",
+					"GetOrganizations",
+					"GetFollowers",
+				}
+
+				for _, function := range userFunctions {
+					// 控制生产速率
+					if !producerRateLimiter.Allow() {
+						time.Sleep(1 * time.Second) // 等待限速
+					}
+
+					message := map[string]interface{}{
+						"username": username,
+						"function": function,
+						"parameters": map[string]interface{}{
+							"username": username,
+						},
+					}
+
+					// 发送用户信息更新消息到队列
+					err := s.Producer.Produce(ctx, "user_api_tasks", message)
+					if err != nil {
+						log.Printf("Failed to produce message for function %s: %v", function, err)
+					} else {
+						log.Printf("Produced message: %v", message)
+					}
+				}
+
 				// 调用 GetRepositories 获取用户的所有仓库
 				repoListResp, err := s.svc.GetRepositories(ctx, &git.GetUsernameRequest{Username: username})
 				if err != nil {
 					log.Printf("Failed to get repositories for username %s: %v", username, err)
+					continue
+				}
+
+				// 比较新旧仓库列表，删除无效仓库
+				oldeRepos, err := s.FetchReposFromDB(ctx, username)
+				if err != nil {
+					log.Printf("Failed to get old repositories for username %s: %v", username, err)
+					continue
+				}
+				invalidRepos := HasInvalidRepos(oldeRepos, repoListResp.Result)
+				err = s.DeleteInvalidReposFromDB(ctx, invalidRepos)
+				if err != nil {
+					log.Printf("Failed to delete invalid repositories for username %s: %v", username, err)
 					continue
 				}
 
@@ -76,6 +126,18 @@ func (s *ServiceImpl) StartProducer(ctx context.Context) {
 						}
 					}
 				}
+				// 更新计算用户技术评分
+				userrepos, error := s.FetchUserReposFromDB(ctx, username)
+				if error != nil {
+					log.Printf("Failed to get user repos for username %s: %v", username, error)
+					continue
+				}
+				if err = CalculateOverallScore(userrepos); err != nil {
+					log.Printf("Failed to calculate overall score for username %s: %v", username, err)
+					continue
+				}
+				s.UpdateUserScore(ctx, username, userrepos.User.Score)
+
 			}
 		}
 	}

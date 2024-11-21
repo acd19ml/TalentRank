@@ -76,6 +76,13 @@ FROM User a
 	DeleteUserSQL = `
 		DELETE FROM user WHERE id = ?;
 	`
+
+	UpdateUserScoreSQL = `
+		INSERT INTO User (username, score)
+		VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE
+		score = VALUES(score)
+	`
 )
 
 // CREATE TABLE User (
