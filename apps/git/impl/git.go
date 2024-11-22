@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	_ "os"
-	"sync"
 
 	"github.com/acd19ml/TalentRank/apps"
 	"github.com/acd19ml/TalentRank/apps/git"
@@ -18,10 +17,6 @@ var svr = &Service{}
 
 type Service struct {
 	git.UnimplementedGitServiceServer
-	// client        *github.Client
-	reposCache    []string   // 缓存仓库列表
-	cacheUsername string     // 缓存中保存的用户名
-	cacheMutex    sync.Mutex // 用于同步缓存访问
 }
 
 // Config 配置服务
@@ -30,25 +25,7 @@ func (s *Service) Config() {
 	if token == "" {
 		log.Fatal("GITHUB_TOKEN is not set")
 	}
-	// s.client = s.GetClientWithToken(token)
-
 }
-
-//// Config 配置服务
-//func (s *Service) Config(token string) {
-//	if token == "" {
-//		log.Fatal("GITHUB_TOKEN is not provided")
-//	}
-//
-//	// 使用传入的 Token 配置 OAuth2 客户端
-//	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
-//	tc := oauth2.NewClient(context.Background(), ts)
-//	client := github.NewClient(tc)
-//
-//	// 将配置应用到服务实例
-//	s.client = client
-//	s.oauth = &ts
-//}
 
 func (s *Service) Name() string {
 	return git.AppName
