@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/acd19ml/TalentRank/apps/llm"
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 
 	"github.com/acd19ml/TalentRank/apps"
@@ -87,7 +88,6 @@ func (u *ServiceImpl) save(ctx context.Context, ins *user.UserRepos) error {
 	return nil
 }
 
-// constructUserRepos 创建用户及其仓库信息，开启多个 goroutine 并发获取数据
 func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (*user.UserRepos, error) {
 	if username == "" {
 		return nil, errors.New("username cannot be empty")
@@ -99,17 +99,47 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 		}
 	}()
 
-	// 创建User实例
-	userins, err := s.ConstructUser(ctx, username)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
-	}
-	if userins == nil {
-		return nil, errors.New("constructUser returned nil for userins")
-	}
-	if userins.Username == "" {
-		return nil, errors.New("username is empty in userins")
-	}
+	// 初始化User实例
+	userins := &user.User{Id: uuid.New().String()} // 直接在外部初始化ID
+
+	// 初始化结果和错误存储
+	repoData := make(map[string]*user.Repo)
+	errorCh := make(chan error, 1) // 捕获错误
+
+	// Goroutine同步控制
+	var wg sync.WaitGroup
+
+	// 启动 ConstructUser 的 Goroutine
+	wg.Add(1)
+	go func() {
+		defer wg.Done() // 标记 ConstructUser 任务完成
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Recovered from panic in ConstructUser goroutine: %v", r)
+			}
+		}()
+
+		// 创建用户实例
+		u, err := s.ConstructUser(ctx, username)
+		if err != nil {
+			errorCh <- fmt.Errorf("failed to create user: %w", err)
+			return
+		}
+		if u == nil || u.Username == "" {
+			errorCh <- fmt.Errorf("invalid user created for username: %s", username)
+			return
+		}
+
+		// 合并 ConstructUser 返回的用户数据
+		userins.Username = u.Username
+		userins.Name = u.Name
+		userins.Email = u.Email
+		userins.Company = u.Company
+		userins.Location = u.Location
+		userins.Bio = u.Bio
+		userins.Organizations = u.Organizations
+		userins.Followers = u.Followers
+	}()
 
 	// 获取用户的所有仓库列表
 	repoListResp, err := s.svc.GetRepositories(ctx, &git.GetUsernameRequest{Username: username})
@@ -121,22 +151,8 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 		return nil, fmt.Errorf("no repositories found for user: %s", username)
 	}
 
-	// 初始化结果和错误存储
-	repoData := make(map[string]*user.Repo, len(repoList))
-	errorCh := make(chan error, len(repoList)*11+1) // 捕获所有错误
-
-	// 推断用户位置
-	go func() {
-		if err := s.InferUserLocationWithLLM(ctx, userins); err != nil {
-			errorCh <- fmt.Errorf("failed to infer user location with LLM: %w", err)
-		}
-	}()
-
-	// 使用 goroutine 池并发处理每个仓库
-	var wg sync.WaitGroup
-	repoCh := make(chan string, len(repoList)) // 用于调度仓库
-
-	// 将仓库名发送到 channel 中
+	// 使用 Goroutine 池并发处理每个仓库
+	repoCh := make(chan string, len(repoList))
 	for _, repo := range repoList {
 		repoCh <- repo
 	}
@@ -144,6 +160,8 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 
 	// 定义 worker 处理逻辑
 	worker := func() {
+		defer wg.Done() // 标记当前 worker 完成
+
 		for repoName := range repoCh {
 			repoInfo := &user.Repo{
 				User_id: userins.Id,
@@ -212,21 +230,25 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 			repoInfo.InjectDefault()
 			repoData[repoName] = repoInfo
 		}
-		wg.Done()
 	}
 
 	// 启动 worker 池
-	numWorkers := 10 // 可根据实际情况调整
+	numWorkers := 10
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go worker()
 	}
 
-	// 等待所有 worker 完成
+	// 等待 ConstructUser 和 workers 完成
 	wg.Wait()
-	close(errorCh)
+
+	// 调用 InferUserLocationWithLLM
+	if err := s.InferUserLocationWithLLM(ctx, userins); err != nil {
+		return nil, fmt.Errorf("failed to infer user location with LLM: %w", err)
+	}
 
 	// 检查是否有错误
+	close(errorCh)
 	for e := range errorCh {
 		if e != nil {
 			log.Printf("Error occurred during repository construction: %v", e)
@@ -234,7 +256,7 @@ func (s *ServiceImpl) constructUserRepos(ctx context.Context, username string) (
 		}
 	}
 
-	// 构建Repo列表
+	// 构建 Repo 列表
 	var repos []*user.Repo
 	for _, repoInfo := range repoData {
 		repos = append(repos, repoInfo)
@@ -401,7 +423,7 @@ func (s *ServiceImpl) ConstructUser(ctx context.Context, username string) (*user
 	}
 
 	// 填充 ID
-	user.InjectDefault()
+	// user.InjectDefault()
 
 	return user, nil
 }

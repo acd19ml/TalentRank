@@ -18,8 +18,7 @@ import (
 )
 
 var (
-	mutex sync.Mutex
-	wg    sync.WaitGroup
+	wg sync.WaitGroup
 )
 
 // checkIfUserIsContributor 检查用户是否为仓库的贡献者
