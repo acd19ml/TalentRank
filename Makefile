@@ -32,3 +32,18 @@ build: dep ## Build the binary file
 
 help: ## Display this help screen
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+# 定义生成 Go 代码的目标
+gen-proto:
+	$(call generate_proto,git)
+	$(call generate_proto,llm)
+
+# 定义一个函数来生成 proto 文件
+define generate_proto
+	protoc -I=. \
+		--go_out=./apps/$(1) \
+		--go_opt=module="github.com/acd19ml/TalentRank/apps/$(1)" \
+		--go-grpc_out=./apps/$(1) \
+		--go-grpc_opt=module="github.com/acd19ml/TalentRank/apps/$(1)" \
+		apps/$(1)/pb/$(1).proto
+endef

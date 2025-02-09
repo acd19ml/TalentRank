@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v3.12.4
-// source: pb/git.proto
+// source: apps/git/pb/git.proto
 
 package git
 
@@ -843,5 +843,5 @@ var GitService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "pb/git.proto",
+	Metadata: "apps/git/pb/git.proto",
 }
